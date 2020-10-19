@@ -27,6 +27,7 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+CONVERT_SCORE = (89, 193, 53)
 
 
 # image loading block
@@ -63,6 +64,12 @@ meteor_images_list = ["meteor_64x64p_rgb_0_0_0.png",
 # load all images in meteor_images list
 for img in meteor_images_list:
     meteor_images.append(pygame.image.load(path.join(img_dir, img)).convert())
+
+# load score surface image
+score_image = pygame.image.load(path.join(img_dir, "score_display0_32x128_rgb_89_193_53.png")).convert()
+score_image = pygame.transform.scale(score_image, (256, 64))
+score_image.set_colorkey(CONVERT_SCORE)
+score_image_rect = score_image.get_rect()
 
 
 # sounds loading block
@@ -114,6 +121,15 @@ class Player(pygame.sprite.Sprite):
 
         self.radius = int(self.rect.width / 2.2)
         # pygame.draw.circle(self.image, RED, self.rect.center, self.radius)
+
+        # create a score counter for the player and a multiplier for more visual fun
+        self.score = 0
+        self.score_multiplier = 1
+        # the hurt_mode allows to take damage. It is used for delay
+        # otherwise player could lose all life by impact of multiple spritecollides at once
+        self.hurt_mode = True
+        self.hurt_delay = 3000
+        self.last_update = pygame.time.get_ticks()
 
     # update the player sprite by user input
     def update(self):
@@ -170,6 +186,26 @@ class Player(pygame.sprite.Sprite):
             all_sprites.add(bullet1)
             laser_sound.play()
             bullets.add(bullet1)
+
+    # this function activates to avoid taking multiple damage at once
+    # through multiple sprite collisions
+    def hurt(self):
+        now = pygame.time.get_ticks()
+        if self.hurt_mode:
+            self.last_update = now
+            self.lives -= 1
+            self.hurt_mode = False
+            print("FOX I WAS HIT AT " + str(now))
+        if not self.hurt_mode:
+            if now - self.last_update > int(self.hurt_delay):
+                self.hurt_mode = True
+                now = pygame.time.get_ticks()
+                print("FOX I RECOVERD AT " + str(now))
+
+# create player object and add it to the right sprite groups
+player = Player()
+all_sprites.add(player)
+players.add(player)
 
 
 # class for spawning bullets and their behavior
@@ -283,6 +319,7 @@ def draw_lives(surface, x, y, lives, img):
         surface.blit(img, img_rect)
 
 
+# function to write text on surfaces
 def draw_text(surface, text, size, x, y):
     font = pygame.font.Font(font_name, size)
     text_surface = font.render(text, True, WHITE)
@@ -291,29 +328,7 @@ def draw_text(surface, text, size, x, y):
     surface.blit(text_surface, text_rect)
 
 
-# create player object and add it to the right sprite groups
-player = Player()
-all_sprites.add(player)
-players.add(player)
-
-if __name__ == "__main__":
-    while True:
-        # keep the loop running at the right speed
-        clock.ticks(FPS)
-
-        # check for closing game
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                end_game()
-
-            # update sprites
-            all_sprites.update()
-
-            # draw / render
-            # GS.screen.fill(GS.BLACK)
-            screen.blit(background_img, background_img_rect)
-            all_sprites.draw(screen)
-            # pygame.draw.circle(GS.i.image, GS.RED, GS.i.rect.center, GS.i.radius)
-
-            # after drawing, flip screen
-            pygame.display.flip()
+# draws the already achieved score by the player
+def draw_score():
+    screen.blit(score_image, (5, 5))
+    draw_text(screen, str(player.score), 38, (score_image_rect.width / 2), (score_image_rect.y + 25))
