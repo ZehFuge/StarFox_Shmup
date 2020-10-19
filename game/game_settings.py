@@ -18,6 +18,8 @@ HEIGHT = 800
 FPS = 60
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
+# fonts needs to be pre declared, to blit text on surface through function
+font_name = pygame.font.match_font("Arial")
 
 # pre defined colors
 BLACK = (0, 0, 0)
@@ -35,9 +37,14 @@ snd_dir = path.join(path.dirname(__file__), "snd")
 # load pictures and make them transparent
 # images need to be converted by convert(), if not, the frame rate will suffer due to calculation
 player_img = pygame.image.load(path.join(img_dir, "arwing_r181_g230_b29.png")).convert()
+player_img.set_colorkey((181, 230, 29))
+
+# set player lives image
+player_live_img = player_img
+
+# resize the player sprite after copying as mini format for lives display
 # resize the player sprite: pygame.transform.scale(image, (new_width, new_height))
 player_img = pygame.transform.scale(player_img, (96, 96))
-player_img.set_colorkey((181, 230, 29))
 
 # load background image
 background_img = pygame.image.load(path.join(img_dir, "space_background_1200x800_nsm.png")).convert()
@@ -103,9 +110,10 @@ class Player(pygame.sprite.Sprite):
         # in this case 250 = milliseconds
         self.shoot_delay = 250
         self.last_shot = 0
+        self.lives = 3
 
-        self.radius = int(self.rect.width / 2)
-        pygame.draw.circle(self.image, RED, self.rect.center, self.radius)
+        self.radius = int(self.rect.width / 2.2)
+        # pygame.draw.circle(self.image, RED, self.rect.center, self.radius)
 
     # update the player sprite by user input
     def update(self):
@@ -194,7 +202,7 @@ class Meteor(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         # select random size meteor
-        # 32x32p, 64x64p or 96x96p
+        # 64x64p, 96x96p or 128x128p
         self.image_original = choice(meteor_images)
         self.image_original.set_colorkey(WHITE)
 
@@ -206,6 +214,9 @@ class Meteor(pygame.sprite.Sprite):
         # let each object rotate in a different speed for more realistic feeling
         self.rotation = 0
         self.rotation_speed = randrange(-15, 15)
+        # denie rotation_speed = 0
+        while self.rotation_speed == 0:
+            self.rotation_speed = randrange(-15, 15)
         self.last_update = pygame.time.get_ticks()
 
         # set start randomly generated start positons
@@ -214,18 +225,36 @@ class Meteor(pygame.sprite.Sprite):
         self.rect.y = randrange(-150, -100)
 
         # set fly behavior
-        self.speed_y = randrange(4, 8)
-        self.speed_x = randrange(-2, 2)
+        self.speed_y = randrange(8, 15)
+        self.speed_x = randrange(-3, 3)
 
         # create circular hitbox
-        self.radius = int(self.rect.width / 2)
-        pygame.draw.circle(self.image, RED, self.rect.center, self.radius)
+        self.radius = int(self.rect.width / 2.2)
+        # pygame.draw.circle(self.image, RED, self.rect.center, self.radius)
+
+    # make the sprite rotate
+    def rotate(self):
+        now = pygame.time.get_ticks()
+        # rotate spirte every 50 milliseconds
+        if now - self.last_update > 50:
+            self.last_update = now
+            # calculate rotation angle
+            self.rotation = (self.rotation + self.rotation_speed) % 360
+            # pygame.transform.rotate(surface, angle)
+            new_image = pygame.transform.rotate(self.image_original, self.rotation)
+            old_center = self.rect.center
+            self.image = new_image
+            self.rect = self.image.get_rect()
+            self.rect.center = old_center
 
     # update position by behavior
     def update(self):
-        # Test
+        # Test with fixed and visible position
         # self.rect.x = 50
         # self.rect.y = 100
+
+        # rotate the sprite
+        self.rotate()
 
         # move the meteor
         self.rect.x += self.speed_x
@@ -246,15 +275,26 @@ def end_game():
     exit()
 
 
+def draw_lives(surface, x, y, lives, img):
+    for i in range(lives):
+        img_rect = img.get_rect()
+        img_rect.x = x + 30 * i
+        img_rect.y = y
+        surface.blit(img, img_rect)
+
+
+def draw_text(surface, text, size, x, y):
+    font = pygame.font.Font(font_name, size)
+    text_surface = font.render(text, True, WHITE)
+    text_rect = text_surface.get_rect()
+    text_rect.midtop = (x, y)
+    surface.blit(text_surface, text_rect)
+
+
 # create player object and add it to the right sprite groups
 player = Player()
 all_sprites.add(player)
 players.add(player)
-
-for i in range(10):
-    i = Meteor()
-    all_sprites.add(i)
-    meteors.add(i)
 
 if __name__ == "__main__":
     while True:
