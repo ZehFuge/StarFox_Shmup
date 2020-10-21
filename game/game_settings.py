@@ -28,6 +28,7 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 CONVERT_SCORE = (89, 193, 53)
+CONVERT_WINGS = (172, 50, 50)
 
 
 # image loading block
@@ -52,8 +53,12 @@ background_img = pygame.image.load(path.join(img_dir, "space_background_1200x800
 background_img_rect = background_img.get_rect()
 
 # load laser images
-green_laser = pygame.image.load(path.join(img_dir, "green_laser_8x16p_rgb_black.png")).convert()
+green_laser = pygame.image.load(path.join(img_dir, "green_laser_15x25p_rgb_black.png")).convert()
 green_laser.set_colorkey(BLACK)
+blue_laser = pygame.image.load(path.join(img_dir, "blue_laser_15x25p_rgb_black.png")).convert()
+blue_laser.set_colorkey(BLACK)
+red_laser = pygame.image.load(path.join(img_dir, "red_laser_15x25p_rgb_black.png")).convert()
+red_laser.set_colorkey(BLACK)
 
 # loading meteor image
 # the colorkey is set in the class Meteors
@@ -70,6 +75,12 @@ score_image = pygame.image.load(path.join(img_dir, "score_display0_32x128_rgb_89
 score_image = pygame.transform.scale(score_image, (256, 64))
 score_image.set_colorkey(CONVERT_SCORE)
 score_image_rect = score_image.get_rect()
+
+# load power up images
+power_up_images = {}
+power_up_images["wings"] = pygame.image.load(path.join(img_dir, "wings_power_up_32x32p_rgb_172_50_50.png")).convert()
+power_up_images["wings"].set_colorkey(CONVERT_WINGS)
+power_up_images["wings"] = pygame.transform.scale(power_up_images["wings"], (64, 64))
 
 
 # sounds loading block
@@ -91,6 +102,7 @@ all_sprites = pygame.sprite.Group()
 players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 meteors = pygame.sprite.Group()
+power_ups = pygame.sprite.Group()
 
 
 # sprite classes and function block
@@ -118,18 +130,25 @@ class Player(pygame.sprite.Sprite):
         self.shoot_delay = 250
         self.last_shot = 0
         self.lives = 3
+        # shield is used as the players hp bar
+        self.shield = 100
 
         self.radius = int(self.rect.width / 2.2)
         # pygame.draw.circle(self.image, RED, self.rect.center, self.radius)
 
         # create a score counter for the player and a multiplier for more visual fun
         self.score = 0
-        self.score_multiplier = 1
+        self.score_multiplier = 8
         # the hurt_mode allows to take damage. It is used for delay
         # otherwise player could lose all life by impact of multiple spritecollides at once
         self.hurt_mode = True
-        self.hurt_delay = 3000
+        self.hurt_delay = 500
         self.last_update = pygame.time.get_ticks()
+        # hides the sprite of the player if player loses a life
+        self.hide = False
+        # power level defines the strength of the laser
+        self.power_level = 1
+
 
     # update the player sprite by user input
     def update(self):
@@ -169,7 +188,6 @@ class Player(pygame.sprite.Sprite):
         if keystate[pygame.K_SPACE]:
             self.shoot()
 
-
     # make the player shoot after pressing the space bar
     def shoot(self):
         # set the time of pressing space to a variable
@@ -193,14 +211,21 @@ class Player(pygame.sprite.Sprite):
         now = pygame.time.get_ticks()
         if self.hurt_mode:
             self.last_update = now
-            self.lives -= 1
-            self.hurt_mode = False
-            print("FOX I WAS HIT AT " + str(now))
+            if self.shield <= 0:
+                self.lives -= 1
+                self.shield = 100
+                self.hide = True
+                # set hurt_mode to false, to avoid damage for a short time
+                self.hurt_mode = False
+            else:
+                self.shield -= 20
+
         if not self.hurt_mode:
             if now - self.last_update > int(self.hurt_delay):
                 self.hurt_mode = True
+                self.hide = False
                 now = pygame.time.get_ticks()
-                print("FOX I RECOVERD AT " + str(now))
+
 
 # create player object and add it to the right sprite groups
 player = Player()
@@ -214,7 +239,12 @@ class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
         # set image to sprite and get its rectangle information
-        self.image = green_laser
+        if player.power_level == 1:
+            self.image = green_laser
+        if player.power_level == 2:
+            self.image = blue_laser
+        if player.power_level >= 3:
+            self.image = red_laser
         self.rect = self.image.get_rect()
 
         # set spawn position by player coordiantes
@@ -306,6 +336,23 @@ class Meteor(pygame.sprite.Sprite):
             self.speed_x = randrange(-2, 2)
 
 
+class Power_Ups(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.type = "wings"
+        self.image = power_up_images[self.type]
+        self.rect = self.image.get_rect()
+        self.rect.bottom = y
+        self.rect.centerx = x
+        self.speed_y = 5
+
+    def update(self):
+        self.rect.y += self.speed_y
+        # kill if it leaves the screen
+        if self.rect.top > HEIGHT:
+            self.kill()
+
+
 def end_game():
     quit()
     exit()
@@ -332,3 +379,20 @@ def draw_text(surface, text, size, x, y):
 def draw_score():
     screen.blit(score_image, (5, 5))
     draw_text(screen, str(player.score), 38, (score_image_rect.width / 2), (score_image_rect.y + 25))
+
+
+def draw_shield_bar(surface, x, y, shield):
+    if shield < 0:
+        shield = 0
+    # set size for the hp bar
+    BAR_LENGTH = 200
+    BAR_HEIGHT = 30
+    # if shield gets lower, the shield bar will decrease in length
+    fill = (shield / 100) * BAR_LENGTH
+    outline_rect = pygame.Rect(x, y, BAR_LENGTH, BAR_HEIGHT)
+    fill_rect = pygame.Rect(x, y, fill, BAR_HEIGHT)
+    outline_rect = pygame.Rect(x, y, fill, BAR_HEIGHT)
+    # draw the hp bar
+    pygame.draw.rect(surface, GREEN, fill_rect)
+    # draw the outline of the hp bar
+    pygame.draw.rect(surface, WHITE, outline_rect, 1)
