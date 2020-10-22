@@ -8,7 +8,7 @@ import pygame
 
 # library init block
 pygame.mixer.init()
-# font.__init__()
+pygame.font.__init__()
 
 
 # game information block
