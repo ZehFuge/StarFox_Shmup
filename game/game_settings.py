@@ -8,7 +8,7 @@ import pygame
 
 # library init block
 pygame.mixer.init()
-pygame.font.__init__()
+pygame.font.init()
 
 
 # game information block
@@ -76,18 +76,28 @@ score_image = pygame.transform.scale(score_image, (256, 64))
 score_image.set_colorkey(CONVERT_SCORE)
 score_image_rect = score_image.get_rect()
 
+# load muliplicator surface image
+multi_image = pygame.image.load(path.join(img_dir, "multiplicator_display0_32x32p_rgb_89_193_53.png")).convert()
+multi_image = pygame.transform.scale(multi_image, (64, 64))
+multi_image.set_colorkey(CONVERT_SCORE)
+multi_image_rect = multi_image.get_rect()
+
+
 # load power up images
 power_up_images = {}
 power_up_images["wings"] = pygame.image.load(path.join(img_dir, "wings_power_up_32x32p_rgb_172_50_50.png")).convert()
 power_up_images["wings"].set_colorkey(CONVERT_WINGS)
 power_up_images["wings"] = pygame.transform.scale(power_up_images["wings"], (64, 64))
+power_up_images["double"] = pygame.image.load(path.join(img_dir, "multiplicator_power_up_32x32p_rgb_white.png")).convert()
+power_up_images["double"].set_colorkey(WHITE)
+power_up_images["double"] = pygame.transform.scale(power_up_images["double"], (64, 64))
 
 
 # sounds loading block
 # load game theme
 game_music = pygame.mixer.music.load(path.join(snd_dir, "corneria_theme_music.mp3"))
 # set game_music loudness
-pygame.mixer.music.set_volume(0.3)
+pygame.mixer.music.set_volume(0.1) # 0.3
 # set game_music to inifinit loop
 pygame.mixer.music.play(loops=-1)
 
@@ -138,7 +148,7 @@ class Player(pygame.sprite.Sprite):
 
         # create a score counter for the player and a multiplier for more visual fun
         self.score = 0
-        self.score_multiplier = 8
+        self.score_multiplier = 1
         # the hurt_mode allows to take damage. It is used for delay
         # otherwise player could lose all life by impact of multiple spritecollides at once
         self.hurt_mode = True
@@ -205,6 +215,7 @@ class Player(pygame.sprite.Sprite):
             laser_sound.play()
             bullets.add(bullet1)
 
+
     # this function activates to avoid taking multiple damage at once
     # through multiple sprite collisions
     def hurt(self):
@@ -213,12 +224,23 @@ class Player(pygame.sprite.Sprite):
             self.last_update = now
             if self.shield <= 0:
                 self.lives -= 1
+                # reset multiplier bonus
+                self.score_multiplier = 1
+                # reset the power level of the weapon
+                self.power_level = 1
                 self.shield = 100
                 self.hide = True
                 # set hurt_mode to false, to avoid damage for a short time
                 self.hurt_mode = False
             else:
+                # player takes damage
                 self.shield -= 20
+                # reset multiplier bonus
+                self.score_multiplier = 1
+                # nerf the weapon of the player if taking damage
+                if self.power_level > 1:
+                    self.power_level -= 1
+
 
         if not self.hurt_mode:
             if now - self.last_update > int(self.hurt_delay):
@@ -339,7 +361,7 @@ class Meteor(pygame.sprite.Sprite):
 class Power_Ups(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
-        self.type = "wings"
+        self.type = choice(["wings", "double"])
         self.image = power_up_images[self.type]
         self.rect = self.image.get_rect()
         self.rect.bottom = y
@@ -381,6 +403,14 @@ def draw_score():
     draw_text(screen, str(player.score), 38, (score_image_rect.width / 2), (score_image_rect.y + 25))
 
 
+# draw the multiplicator of the player
+def draw_multi():
+    multi_image_rect.x = score_image_rect.width + 10
+    multi_image_rect.y = 5
+    screen.blit(multi_image, (multi_image_rect.x, 5))
+    draw_text(screen, str(player.score_multiplier), 38, (multi_image_rect.x + (multi_image_rect.width / 2)), (multi_image_rect.y + 20))
+
+# draw the hp bar of the player
 def draw_shield_bar(surface, x, y, shield):
     if shield < 0:
         shield = 0
@@ -396,3 +426,6 @@ def draw_shield_bar(surface, x, y, shield):
     pygame.draw.rect(surface, GREEN, fill_rect)
     # draw the outline of the hp bar
     pygame.draw.rect(surface, WHITE, outline_rect, 1)
+
+# kill every sprite on the screen
+# function only applys, if player.live is used to keep playing
