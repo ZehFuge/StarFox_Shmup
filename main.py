@@ -57,7 +57,7 @@ while running:
         GS.player.score += (100 - hit.radius) * GS.player.score_multiplier
         respawn += 1
         # 5% chance to drop power up by meteor kill
-        if random.random() > 0.95:
+        if random.random() > 0.98:
             pow = GS.Power_Ups(hit.rect.center[0], hit.rect.center[1])
             GS.all_sprites.add(pow)
             GS.power_ups.add(pow)
@@ -76,6 +76,8 @@ while running:
     for hit in hits:
         if hit.type == "wings":
             GS.player.power_level += 1
+        if hit.type == "double":
+            GS.player.score_multiplier *= 2
 
 
     # draw / render sprites
@@ -91,6 +93,8 @@ while running:
     GS.draw_shield_bar(GS.screen, GS.WIDTH - 210, 10, GS.player.shield)
     # draw score surface
     GS.draw_score()
+    # draw the multiplier of the player
+    GS.draw_multi()
     # draw_text(surface, text, size, x, y)
 
 
