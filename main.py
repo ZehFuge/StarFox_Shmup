@@ -16,7 +16,8 @@ running = True
 last_update = pygame.time.get_ticks()
 
 # enemy respawn variable for testing
-respawn = 15
+respawn_meteors = 15
+respawn_enemys = 10
 
 # main loop block
 while running:
@@ -34,6 +35,7 @@ while running:
     if not GS.player.hide:
         GS.all_sprites.add(GS.player)
 
+
     # update / move sprites
     GS.all_sprites.update()
 
@@ -44,31 +46,64 @@ while running:
     # player loses 1 life, also the hurt_mode is set to false to advoid the impact death
     if hits:
         GS.player.hurt()
+    # if meteor dies through hit, raise respawn variable
+    for hit in hits:
+        respawn_meteors += 1
 
+
+    # collision player by enemy
+    hits = pygame.sprite.spritecollide(GS.player, GS.enemys, True, pygame.sprite.collide_circle)
+    # player loses 1 life, also the hurt_mode is set to false to advoid the impact death
+    if hits:
+        GS.player.hurt()
     # if enemy dies through hit, raise respawn variable
     for hit in hits:
-        respawn += 1
+        respawn_enemys += 1
 
 
     # collision meteor by bullets
     hits = pygame.sprite.groupcollide(GS.meteors, GS.bullets, True, True)
-    # if enemy dies through hit, raise respawn variable
+    # if meteor dies through hit, raise respawn variable
     for hit in hits:
         GS.player.score += (100 - hit.radius) * GS.player.score_multiplier
-        respawn += 1
+        respawn_meteors += 1
         # 5% chance to drop power up by meteor kill
-        if random.random() > 0.98:
+        if random.random() > 0.95:
+            pow = GS.Power_Ups(hit.rect.center[0], hit.rect.center[1])
+            GS.all_sprites.add(pow)
+            GS.power_ups.add(pow)
+
+    # collision player by enemy_bullets
+    hits = pygame.sprite.spritecollide(GS.player, GS.enemy_bullets, True)
+    # remove player HP if hit
+    for hit in hits:
+        GS.player.hurt()
+
+    # collision enemys by bullets
+    hits = pygame.sprite.groupcollide(GS.enemys, GS.bullets, True, True)
+    # if enemy dies through hit, raise respawn variable
+    for hit in hits:
+        GS.player.score += 100 * GS.player.score_multiplier
+        respawn_enemys += 1
+        # 5% chance to drop power up by enemy kill
+        if random.random() > 0.95:
             pow = GS.Power_Ups(hit.rect.center[0], hit.rect.center[1])
             GS.all_sprites.add(pow)
             GS.power_ups.add(pow)
 
 
     # enemy respawn loop
-    if respawn > 0:
+    if respawn_meteors > 0:
         i = GS.Meteor()
         GS.all_sprites.add(i)
         GS.meteors.add(i)
-        respawn -= 1
+        respawn_meteors -= 1
+
+    if respawn_enemys > 0:
+        i = GS.Enemy()
+        GS.all_sprites.add(i)
+        GS.enemys.add(i)
+        respawn_enemys -= 1
 
 
     # collision player by power up
@@ -77,7 +112,7 @@ while running:
         if hit.type == "wings":
             GS.player.power_level += 1
         if hit.type == "double":
-            GS.player.score_multiplier *= 2
+            GS.player.score_multiplier += 1
 
 
     # draw / render sprites
