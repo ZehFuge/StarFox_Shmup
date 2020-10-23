@@ -15,6 +15,8 @@ pygame.font.init()
 # game settings
 WIDTH = 1200
 HEIGHT = 800
+# HALF_WIDHT is needed for multiple laser display
+HALF_WIDHT = WIDTH / 2
 FPS = 60
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
@@ -29,6 +31,7 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 CONVERT_SCORE = (89, 193, 53)
 CONVERT_WINGS = (172, 50, 50)
+CONVERT_PLAYER = (181, 230, 29)
 
 
 # image loading block
@@ -39,7 +42,7 @@ snd_dir = path.join(path.dirname(__file__), "snd")
 # load pictures and make them transparent
 # images need to be converted by convert(), if not, the frame rate will suffer due to calculation
 player_img = pygame.image.load(path.join(img_dir, "arwing_r181_g230_b29.png")).convert()
-player_img.set_colorkey((181, 230, 29))
+player_img.set_colorkey(CONVERT_PLAYER)
 
 # set player lives image
 player_live_img = player_img
@@ -69,6 +72,11 @@ meteor_images_list = ["meteor_64x64p_rgb_0_0_0.png",
 # load all images in meteor_images list
 for img in meteor_images_list:
     meteor_images.append(pygame.image.load(path.join(img_dir, img)).convert())
+
+# load enemy images
+enemy_img = pygame.image.load(path.join(img_dir, "enemy_r181_g230_b29.png")).convert()
+enemy_img = pygame.transform.scale(enemy_img, (96, 96))
+enemy_img.set_colorkey(CONVERT_PLAYER)
 
 # load score surface image
 score_image = pygame.image.load(path.join(img_dir, "score_display0_32x128_rgb_89_193_53.png")).convert()
@@ -113,6 +121,8 @@ players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 meteors = pygame.sprite.Group()
 power_ups = pygame.sprite.Group()
+enemys = pygame.sprite.Group()
+enemy_bullets = pygame.sprite.Group()
 
 
 # sprite classes and function block
@@ -208,12 +218,38 @@ class Player(pygame.sprite.Sprite):
             # if enough time has passed, set new time for last_shot variable
             self.last_shot = now
 
-            # give the class the needed information to create bullet object
-            # information are given by rect information of the sprite
-            bullet1 = Bullet(self.rect.centerx, self.rect.top)
-            all_sprites.add(bullet1)
-            laser_sound.play()
-            bullets.add(bullet1)
+            # laser object amount is declared by the power_level of the player
+            # single shot
+            if player.power_level == 1:
+                # give the class the needed information to create bullet object
+                # information are given by rect information of the sprite
+                bullet1 = Bullet(self.rect.centerx, self.rect.top)
+                all_sprites.add(bullet1)
+                laser_sound.play()
+                bullets.add(bullet1)
+
+            # double shot
+            if player.power_level == 2:
+                bullet1 = Bullet(self.rect.centerx - (self.rect.width / 2), self.rect.top)
+                bullet2 = Bullet(self.rect.centerx + (self.rect.width / 2), self.rect.top)
+                all_sprites.add(bullet1)
+                all_sprites.add(bullet2)
+                bullets.add(bullet1)
+                bullets.add(bullet2)
+                laser_sound.play()
+
+            # tripple shot
+            if player.power_level >= 3:
+                bullet0 = Bullet(self.rect.centerx, self.rect.top - 50)
+                bullet1 = Bullet(self.rect.centerx - (self.rect.width / 2), self.rect.top)
+                bullet2 = Bullet(self.rect.centerx + (self.rect.width / 2), self.rect.top)
+                all_sprites.add(bullet0)
+                all_sprites.add(bullet1)
+                all_sprites.add(bullet2)
+                bullets.add(bullet0)
+                bullets.add(bullet1)
+                bullets.add(bullet2)
+                laser_sound.play()
 
 
     # this function activates to avoid taking multiple damage at once
@@ -240,6 +276,8 @@ class Player(pygame.sprite.Sprite):
                 # nerf the weapon of the player if taking damage
                 if self.power_level > 1:
                     self.power_level -= 1
+                if self.power_level > 3:
+                    self.power_level = 2
 
 
         if not self.hurt_mode:
@@ -263,10 +301,8 @@ class Bullet(pygame.sprite.Sprite):
         # set image to sprite and get its rectangle information
         if player.power_level == 1:
             self.image = green_laser
-        if player.power_level == 2:
+        if player.power_level >= 2:
             self.image = blue_laser
-        if player.power_level >= 3:
-            self.image = red_laser
         self.rect = self.image.get_rect()
 
         # set spawn position by player coordiantes
@@ -358,6 +394,76 @@ class Meteor(pygame.sprite.Sprite):
             self.speed_x = randrange(-2, 2)
 
 
+class Enemy_Bullet(pygame.sprite.Sprite):
+    # bullets need the coordinates of the player sprite as spawn position
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        # set image to sprite and get its rectangle information
+        self.image = red_laser
+        self.rect = self.image.get_rect()
+
+        # set spawn position by player coordiantes
+        self.rect.bottom = y
+        self.rect.centerx = x
+        # the speed is subtrakted because the bullet is flying up
+        self.move_speed = 10
+
+    # set the update information for behavior
+    def update(self):
+        # set movement decided by move_speed
+        self.rect.y += self.move_speed
+
+        # if the bottom part of the sprites leaves the upper window range (x = 0), destroy it
+        if self.rect.bottom < 0:
+            self.kill()
+
+
+# class for random spawning enemys
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = enemy_img
+        self.rect = self.image.get_rect()
+
+        # save time, so every 3 seconds the enemy will shoot
+        self.last_shot = pygame.time.get_ticks()
+        self.shooting_delay = randrange(1000, 3000)
+
+        # information needed for movement and hitbox
+        self.radius = self.rect.width / 2.5
+        self.speed_y = randrange(1, 5)
+        self.speed_x = randrange(-2, 2)
+
+        # set start randomly generated start positons
+        self.rect.x = randrange(0 + (self.rect.width / 2), WIDTH - self.rect.width)
+        # start position y set to negative, so it doesnt pop up on screen but comes in naturally
+        self.rect.y = -100
+
+    def update(self):
+        # move enemys y-axis by speed_y value
+        self.rect.y += self.speed_y
+
+        now = pygame.time.get_ticks()
+        if now - self.last_shot > self.shooting_delay:
+            self.last_shot = now
+            self.shoot()
+
+        if self.rect.top > HEIGHT \
+                or self.rect.left < (0 - self.rect[2]) \
+                or self.rect.right > (WIDTH + self.rect[2]):
+            self.rect.x = randrange(0, WIDTH - self.rect.width)
+            self.rect.y = randrange(-150, -100)
+            self.speed_y = randrange(1, 5)
+            self.speed_x = randrange(-2, 2)
+
+    def shoot(self):
+        # give the class the needed information to create bullet object
+        # information are given by rect information of the sprite
+        bullet1 = Enemy_Bullet(self.rect.centerx, self.rect.top)
+        all_sprites.add(bullet1)
+        laser_sound.play()
+        enemy_bullets.add(bullet1)
+
 class Power_Ups(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
@@ -426,6 +532,3 @@ def draw_shield_bar(surface, x, y, shield):
     pygame.draw.rect(surface, GREEN, fill_rect)
     # draw the outline of the hp bar
     pygame.draw.rect(surface, WHITE, outline_rect, 1)
-
-# kill every sprite on the screen
-# function only applys, if player.live is used to keep playing
