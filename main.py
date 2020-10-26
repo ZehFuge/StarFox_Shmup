@@ -12,22 +12,32 @@ pygame.init()
 # set mainloop var
 running = True
 
+# display welcome screen
+welcome_screen = True
+game_over_screen = False
+
 # set last_update for time events
 last_update = pygame.time.get_ticks()
 
 # enemy respawn variable for testing
-respawn_meteors = 15
-respawn_enemys = 10
+respawn_meteors = 10
+respawn_enemys = 5
 
 # main loop block
 while running:
     # keep the loop running at the right speed
     GS.clock.tick(GS.FPS)
 
+    # check if welcome screen should be displayed
+    if welcome_screen:
+        GS.display_welcome()
+        welcome_screen = False
+
     # check for closing game
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             GS.end_game()
+
 
     # check if player lost live and shall not be drawn
     if GS.player.hide:
@@ -109,10 +119,24 @@ while running:
     # collision player by power up
     hits = pygame.sprite.groupcollide(GS.power_ups, GS.players, True, False)
     for hit in hits:
+        # enhence the quantity of players lasers
         if hit.type == "wings":
             GS.player.power_level += 1
+        # raise the multiplicator score of the player
         if hit.type == "double":
             GS.player.score_multiplier += 1
+        # heal player for a little bit
+        if hit.type == "silver":
+            GS.player.shield += 15
+            # check if players life raised above 100 and correct it
+            if GS.player.shield > 100:
+                GS.player.shield = 100
+        # heal player for a big amount
+        if hit.type == "gold":
+            GS.player.shield += 50
+            # check if players life raised above 100 and correct it
+            if GS.player.shield > 100:
+                GS.player.shield = 100
 
 
     # draw / render sprites
