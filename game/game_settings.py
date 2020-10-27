@@ -3,6 +3,8 @@ from os import path
 from sys import exit
 from random import randrange
 from random import choice
+from random import randint
+from random import random
 import pygame
 
 
@@ -74,9 +76,22 @@ for img in meteor_images_list:
     meteor_images.append(pygame.image.load(path.join(img_dir, img)).convert())
 
 # load enemy images
-enemy_img = pygame.image.load(path.join(img_dir, "enemy_r181_g230_b29.png")).convert()
-enemy_img = pygame.transform.scale(enemy_img, (96, 96))
-enemy_img.set_colorkey(CONVERT_PLAYER)
+enemy_imgs = {}
+enemy_imgs["first"] = []
+enemy_imgs["second"] = []
+enemy_imgs["third"] = []
+
+enemy_imgs["first"] = pygame.image.load(path.join(img_dir, "enemy1_r181_g230_b29.png")).convert()
+enemy_imgs["first"] = pygame.transform.scale(enemy_imgs["first"], (96, 96))
+enemy_imgs["first"].set_colorkey(CONVERT_PLAYER)
+
+enemy_imgs["second"] = pygame.image.load(path.join(img_dir, "enemy2_r181_g230_b29.png")).convert()
+enemy_imgs["second"] = pygame.transform.scale(enemy_imgs["second"], (96, 96))
+enemy_imgs["second"].set_colorkey(CONVERT_PLAYER)
+
+enemy_imgs["third"] = pygame.image.load(path.join(img_dir, "enemy3_r181_g230_b29.png")).convert()
+enemy_imgs["third"] = pygame.transform.scale(enemy_imgs["third"], (96, 96))
+enemy_imgs["third"].set_colorkey(CONVERT_PLAYER)
 
 # load score surface image
 score_image = pygame.image.load(path.join(img_dir, "score_display0_32x128_rgb_89_193_53.png")).convert()
@@ -99,6 +114,12 @@ power_up_images["wings"] = pygame.transform.scale(power_up_images["wings"], (64,
 power_up_images["double"] = pygame.image.load(path.join(img_dir, "multiplicator_power_up_32x32p_rgb_white.png")).convert()
 power_up_images["double"].set_colorkey(WHITE)
 power_up_images["double"] = pygame.transform.scale(power_up_images["double"], (64, 64))
+power_up_images["silver"] = pygame.image.load(path.join(img_dir, "silver_ring_power_up_32x32p_rgb_white.png")).convert()
+power_up_images["silver"].set_colorkey(WHITE)
+power_up_images["silver"] = pygame.transform.scale(power_up_images["silver"], (64, 64))
+power_up_images["gold"] = pygame.image.load(path.join(img_dir, "gold_ring_power_up_32x32p_rgb_white.png")).convert()
+power_up_images["gold"].set_colorkey(WHITE)
+power_up_images["gold"] = pygame.transform.scale(power_up_images["gold"], (64, 64))
 
 
 # sounds loading block
@@ -162,7 +183,7 @@ class Player(pygame.sprite.Sprite):
         # the hurt_mode allows to take damage. It is used for delay
         # otherwise player could lose all life by impact of multiple spritecollides at once
         self.hurt_mode = True
-        self.hurt_delay = 500
+        self.hurt_delay = 520
         self.last_update = pygame.time.get_ticks()
         # hides the sprite of the player if player loses a life
         self.hide = False
@@ -268,16 +289,19 @@ class Player(pygame.sprite.Sprite):
                 self.hide = True
                 # set hurt_mode to false, to avoid damage for a short time
                 self.hurt_mode = False
+                if self.lives == 0:
+                    display_game_over()
             else:
                 # player takes damage
                 self.shield -= 20
                 # reset multiplier bonus
                 self.score_multiplier = 1
-                # nerf the weapon of the player if taking damage
-                if self.power_level > 1:
-                    self.power_level -= 1
-                if self.power_level > 3:
-                    self.power_level = 2
+
+                # # nerf the weapon of the player if taking damage
+                # if self.power_level > 1:
+                #     self.power_level -= 1
+                # if self.power_level > 3:
+                #     self.power_level = 2
 
 
         if not self.hurt_mode:
@@ -291,6 +315,19 @@ class Player(pygame.sprite.Sprite):
 player = Player()
 all_sprites.add(player)
 players.add(player)
+
+
+# this class is used to clear the screen from enemys, if the player dies
+class Screen_Killer(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.rect = screen.get_rect()
+
+    def update(self):
+        self.rect.x += 0
+
+    def selfkill(self):
+        self.kill()
 
 
 # class for spawning bullets and their behavior
@@ -321,7 +358,7 @@ class Bullet(pygame.sprite.Sprite):
             self.kill()
 
 
-# class for ramdomly spawning meteors
+# class for randomly spawning meteors
 class Meteor(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -394,6 +431,7 @@ class Meteor(pygame.sprite.Sprite):
             self.speed_x = randrange(-2, 2)
 
 
+# class for enemy bullets which fly downwards
 class Enemy_Bullet(pygame.sprite.Sprite):
     # bullets need the coordinates of the player sprite as spawn position
     def __init__(self, x, y):
@@ -413,8 +451,8 @@ class Enemy_Bullet(pygame.sprite.Sprite):
         # set movement decided by move_speed
         self.rect.y += self.move_speed
 
-        # if the bottom part of the sprites leaves the upper window range (x = 0), destroy it
-        if self.rect.bottom < 0:
+        # if the bottom part of the sprites leaves the bottom window range, destroy it
+        if self.rect.top > HEIGHT:
             self.kill()
 
 
@@ -422,7 +460,13 @@ class Enemy_Bullet(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.image = enemy_img
+        random_number = randint(1, 3)
+        if random_number == 1:
+            self.image = enemy_imgs["first"]
+        if random_number == 2:
+            self.image = enemy_imgs["second"]
+        if random_number == 3:
+            self.image = enemy_imgs["third"]
         self.rect = self.image.get_rect()
 
         # save time, so every 3 seconds the enemy will shoot
@@ -464,10 +508,22 @@ class Enemy(pygame.sprite.Sprite):
         laser_sound.play()
         enemy_bullets.add(bullet1)
 
+
+# power up object definition and dropchances
 class Power_Ups(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
-        self.type = choice(["wings", "double"])
+        # set drop chances for items to avoid an OP player at the begining
+        self.drop_chance = random()
+        if self.drop_chance < 0.4: # 40%
+            self.type = "silver"
+        if 0.4 < self.drop_chance < 0.7: # 30%
+            self.type = "wings"
+        if 0.7 < self.drop_chance < 0.9: # 20%
+            self.type = "double"
+        if self.drop_chance >= 0.9: # 10%
+            self.type = "gold"
+
         self.image = power_up_images[self.type]
         self.rect = self.image.get_rect()
         self.rect.bottom = y
@@ -495,9 +551,9 @@ def draw_lives(surface, x, y, lives, img):
 
 
 # function to write text on surfaces
-def draw_text(surface, text, size, x, y):
+def draw_text(surface, text, size, color, x, y):
     font = pygame.font.Font(font_name, size)
-    text_surface = font.render(text, True, WHITE)
+    text_surface = font.render(text, True, color)
     text_rect = text_surface.get_rect()
     text_rect.midtop = (x, y)
     surface.blit(text_surface, text_rect)
@@ -506,15 +562,14 @@ def draw_text(surface, text, size, x, y):
 # draws the already achieved score by the player
 def draw_score():
     screen.blit(score_image, (5, 5))
-    draw_text(screen, str(player.score), 38, (score_image_rect.width / 2), (score_image_rect.y + 25))
-
+    draw_text(screen, str(player.score), 38, WHITE, (score_image_rect.width / 2), (score_image_rect.y + 25))
 
 # draw the multiplicator of the player
 def draw_multi():
     multi_image_rect.x = score_image_rect.width + 10
     multi_image_rect.y = 5
     screen.blit(multi_image, (multi_image_rect.x, 5))
-    draw_text(screen, str(player.score_multiplier), 38, (multi_image_rect.x + (multi_image_rect.width / 2)), (multi_image_rect.y + 20))
+    draw_text(screen, str(player.score_multiplier), 38, WHITE, (multi_image_rect.x + (multi_image_rect.width / 2)), (multi_image_rect.y + 20))
 
 # draw the hp bar of the player
 def draw_shield_bar(surface, x, y, shield):
@@ -532,3 +587,45 @@ def draw_shield_bar(surface, x, y, shield):
     pygame.draw.rect(surface, GREEN, fill_rect)
     # draw the outline of the hp bar
     pygame.draw.rect(surface, WHITE, outline_rect, 1)
+
+
+def display_welcome():
+    screen.blit(background_img, background_img_rect)
+    draw_text(screen, "Star Fox", 260, BLACK, (WIDTH / 2), HEIGHT / 8)
+    draw_text(screen, "Star Fox", 256, WHITE, (WIDTH / 2), HEIGHT / 8)
+
+    draw_text(screen, "Shmup!", 260, BLACK, (WIDTH / 2), HEIGHT / 2.5)
+    draw_text(screen, "Shmup!", 256, WHITE, (WIDTH / 2), HEIGHT / 2.5)
+
+    draw_text(screen, "Press F button to start", 66, BLACK, (WIDTH / 2), (HEIGHT / 1.2))
+    draw_text(screen, "Press F button to start", 64, WHITE, (WIDTH / 2), HEIGHT / 1.2)
+
+    pygame.display.flip()
+    waiting = True
+    while waiting:
+        clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                end_game()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_f:
+                    waiting = False
+
+
+def display_game_over():
+    screen.blit(background_img, background_img_rect)
+    draw_text(screen, "Your score:", 128, WHITE, (WIDTH / 2), 10)
+    draw_text(screen, str(player.score), 128, WHITE, (WIDTH / 2), 200)
+    draw_text(screen, "You lose", 256, RED, (WIDTH / 2), 350)
+    draw_text(screen, "Press F button to restart", 64, WHITE, (WIDTH / 2), HEIGHT / 1.2)
+
+    pygame.display.flip()
+    waiting = True
+    while waiting:
+        clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                end_game()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_f:
+                    waiting = False
