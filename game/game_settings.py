@@ -628,4 +628,7 @@ def display_game_over():
                 end_game()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_f:
+                    player.lives = 3
+                    player.score_multiplier = 1
+                    player.shield = 100
                     waiting = False
