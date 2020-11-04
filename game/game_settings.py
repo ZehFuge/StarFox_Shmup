@@ -160,7 +160,6 @@ meteors = pygame.sprite.Group()
 power_ups = pygame.sprite.Group()
 enemys = pygame.sprite.Group()
 enemy_bullets = pygame.sprite.Group()
-screen_kills = pygame.sprite.Group()
 
 
 # sprite classes and function block
@@ -325,16 +324,6 @@ class Player(pygame.sprite.Sprite):
 player = Player()
 all_sprites.add(player)
 players.add(player)
-
-
-# this class is used to clear the screen from enemys, if the player dies
-class Screen_Killer(pygame.sprite.Sprite):
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-        self.rect = screen.get_rect()
-
-    def update(self):
-        self.rect.x += 0
 
 
 # class for spawning bullets and their behavior
@@ -667,3 +656,8 @@ def generate_villans(respawn):
 
     # if done
     return amount
+
+
+def safe_amount(respawn):
+    safed_amount = respawn
+
