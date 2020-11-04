@@ -41,11 +41,8 @@ while running:
     # check if player lost live and shall not be drawn
     if GS.player.hide:
         GS.all_sprites.remove(GS.player)
-        i = GS.Screen_Killer
-        GS.screen_kills.add(i)
     if not GS.player.hide:
         GS.all_sprites.add(GS.player)
-        GS.screen_kills.empty()
 
 
     # update / move sprites
