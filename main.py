@@ -20,8 +20,7 @@ game_over_screen = False
 last_update = pygame.time.get_ticks()
 
 # enemy respawn variable for testing
-respawn_meteors = 10
-respawn_enemys = 5
+respawn = 10
 
 # main loop block
 while running:
@@ -42,8 +41,11 @@ while running:
     # check if player lost live and shall not be drawn
     if GS.player.hide:
         GS.all_sprites.remove(GS.player)
+        i = GS.Screen_Killer
+        GS.screen_kills.add(i)
     if not GS.player.hide:
         GS.all_sprites.add(GS.player)
+        GS.screen_kills.empty()
 
 
     # update / move sprites
@@ -51,6 +53,7 @@ while running:
 
 
     # check sprite collisions
+    # player hit by others
     # collision player by meteors
     hits = pygame.sprite.spritecollide(GS.player, GS.meteors, True, pygame.sprite.collide_circle)
     # player loses 1 life, also the hurt_mode is set to false to advoid the impact death
@@ -58,7 +61,7 @@ while running:
         GS.player.hurt()
     # if meteor dies through hit, raise respawn variable
     for hit in hits:
-        respawn_meteors += 1
+        respawn += 1
 
 
     # collision player by enemy
@@ -68,20 +71,8 @@ while running:
         GS.player.hurt()
     # if enemy dies through hit, raise respawn variable
     for hit in hits:
-        respawn_enemys += 1
+        respawn += 1
 
-
-    # collision meteor by bullets
-    hits = pygame.sprite.groupcollide(GS.meteors, GS.bullets, True, True)
-    # if meteor dies through hit, raise respawn variable
-    for hit in hits:
-        GS.player.score += (100 - hit.radius) * GS.player.score_multiplier
-        respawn_meteors += 1
-        # 5% chance to drop power up by meteor kill
-        if random.random() > 0.95:
-            pow = GS.Power_Ups(hit.rect.center[0], hit.rect.center[1])
-            GS.all_sprites.add(pow)
-            GS.power_ups.add(pow)
 
     # collision player by enemy_bullets
     hits = pygame.sprite.spritecollide(GS.player, GS.enemy_bullets, True)
@@ -89,31 +80,35 @@ while running:
     for hit in hits:
         GS.player.hurt()
 
+
+    # collision meteor by bullets
+    hits = pygame.sprite.groupcollide(GS.meteors, GS.bullets, True, True)
+    # if meteor dies through hit, raise respawn variable
+    for hit in hits:
+        GS.player.score += (100 - hit.radius) * GS.player.score_multiplier
+        respawn += 1
+        # 5% chance to drop power up by meteor kill
+        if random.random() >= 0.95:
+            pow = GS.Power_Ups(hit.rect.center[0], hit.rect.center[1])
+            GS.all_sprites.add(pow)
+            GS.power_ups.add(pow)
+
+
     # collision enemys by bullets
     hits = pygame.sprite.groupcollide(GS.enemys, GS.bullets, True, True)
     # if enemy dies through hit, raise respawn variable
     for hit in hits:
         GS.player.score += 100 * GS.player.score_multiplier
-        respawn_enemys += 1
+        respawn += 1
         # 5% chance to drop power up by enemy kill
         if random.random() > 0.95:
             pow = GS.Power_Ups(hit.rect.center[0], hit.rect.center[1])
             GS.all_sprites.add(pow)
             GS.power_ups.add(pow)
 
-
-    # enemy respawn loop
-    if respawn_meteors > 0:
-        i = GS.Meteor()
-        GS.all_sprites.add(i)
-        GS.meteors.add(i)
-        respawn_meteors -= 1
-
-    if respawn_enemys > 0:
-        i = GS.Enemy()
-        GS.all_sprites.add(i)
-        GS.enemys.add(i)
-        respawn_enemys -= 1
+    # check if enemys need to be respawned
+    if respawn > 0:
+        respawn = GS.generate_villans(respawn)
 
 
     # collision player by power up
