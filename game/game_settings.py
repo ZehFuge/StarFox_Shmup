@@ -93,6 +93,14 @@ enemy_imgs["third"] = pygame.image.load(path.join(img_dir, "enemy3_r181_g230_b29
 enemy_imgs["third"] = pygame.transform.scale(enemy_imgs["third"], (96, 96))
 enemy_imgs["third"].set_colorkey(CONVERT_PLAYER)
 
+enemy_imgs["fourth"] = pygame.image.load(path.join(img_dir, "enemy4_r181_g230_b29.png")).convert()
+enemy_imgs["fourth"] = pygame.transform.scale(enemy_imgs["fourth"], (96, 96))
+enemy_imgs["fourth"].set_colorkey(CONVERT_PLAYER)
+
+enemy_imgs["fifth"] = pygame.image.load(path.join(img_dir, "enemy5_r181_g230_b29.png")).convert()
+enemy_imgs["fifth"] = pygame.transform.scale(enemy_imgs["fifth"], (96, 96))
+enemy_imgs["fifth"].set_colorkey(CONVERT_PLAYER)
+
 # load score surface image
 score_image = pygame.image.load(path.join(img_dir, "score_display0_32x128_rgb_89_193_53.png")).convert()
 score_image = pygame.transform.scale(score_image, (256, 64))
@@ -460,13 +468,10 @@ class Enemy_Bullet(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        random_number = randint(1, 3)
-        if random_number == 1:
-            self.image = enemy_imgs["first"]
-        if random_number == 2:
-            self.image = enemy_imgs["second"]
-        if random_number == 3:
-            self.image = enemy_imgs["third"]
+        
+        # set random sprite image defined by enemy_imgs dictonary
+        self.image_type = choice(["first", "second", "third", "fourth", "fifth"])
+        self.image = enemy_imgs[self.image_type]
         self.rect = self.image.get_rect()
 
         # save time, so every 3 seconds the enemy will shoot
