@@ -36,6 +36,11 @@ CONVERT_WINGS = (172, 50, 50)
 CONVERT_PLAYER = (181, 230, 29)
 
 
+# last_updates
+last_update = {}
+last_update["more_villans"] = pygame.time.get_ticks()
+
+
 # image loading block
 # save image and sound folder dir to var
 img_dir = path.join(path.dirname(__file__), "img")
@@ -119,12 +124,15 @@ power_up_images = {}
 power_up_images["wings"] = pygame.image.load(path.join(img_dir, "wings_power_up_32x32p_rgb_172_50_50.png")).convert()
 power_up_images["wings"].set_colorkey(CONVERT_WINGS)
 power_up_images["wings"] = pygame.transform.scale(power_up_images["wings"], (64, 64))
+
 power_up_images["double"] = pygame.image.load(path.join(img_dir, "multiplicator_power_up_32x32p_rgb_white.png")).convert()
 power_up_images["double"].set_colorkey(WHITE)
 power_up_images["double"] = pygame.transform.scale(power_up_images["double"], (64, 64))
+
 power_up_images["silver"] = pygame.image.load(path.join(img_dir, "silver_ring_power_up_32x32p_rgb_white.png")).convert()
 power_up_images["silver"].set_colorkey(WHITE)
 power_up_images["silver"] = pygame.transform.scale(power_up_images["silver"], (64, 64))
+
 power_up_images["gold"] = pygame.image.load(path.join(img_dir, "gold_ring_power_up_32x32p_rgb_white.png")).convert()
 power_up_images["gold"].set_colorkey(WHITE)
 power_up_images["gold"] = pygame.transform.scale(power_up_images["gold"], (64, 64))
@@ -152,6 +160,7 @@ meteors = pygame.sprite.Group()
 power_ups = pygame.sprite.Group()
 enemys = pygame.sprite.Group()
 enemy_bullets = pygame.sprite.Group()
+screen_kills = pygame.sprite.Group()
 
 
 # sprite classes and function block
@@ -305,13 +314,6 @@ class Player(pygame.sprite.Sprite):
                 # reset multiplier bonus
                 self.score_multiplier = 1
 
-                # # nerf the weapon of the player if taking damage
-                # if self.power_level > 1:
-                #     self.power_level -= 1
-                # if self.power_level > 3:
-                #     self.power_level = 2
-
-
         if not self.hurt_mode:
             if now - self.last_update > int(self.hurt_delay):
                 self.hurt_mode = True
@@ -333,9 +335,6 @@ class Screen_Killer(pygame.sprite.Sprite):
 
     def update(self):
         self.rect.x += 0
-
-    def selfkill(self):
-        self.kill()
 
 
 # class for spawning bullets and their behavior
@@ -452,7 +451,7 @@ class Enemy_Bullet(pygame.sprite.Sprite):
         self.rect.bottom = y
         self.rect.centerx = x
         # the speed is subtrakted because the bullet is flying up
-        self.move_speed = 10
+        self.move_speed = 8
 
     # set the update information for behavior
     def update(self):
@@ -468,7 +467,7 @@ class Enemy_Bullet(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        
+
         # set random sprite image defined by enemy_imgs dictonary
         self.image_type = choice(["first", "second", "third", "fourth", "fifth"])
         self.image = enemy_imgs[self.image_type]
@@ -481,10 +480,9 @@ class Enemy(pygame.sprite.Sprite):
         # information needed for movement and hitbox
         self.radius = self.rect.width / 2.5
         self.speed_y = randrange(1, 5)
-        self.speed_x = randrange(-2, 2)
 
         # set start randomly generated start positons
-        self.rect.x = randrange(0 + (self.rect.width / 2), WIDTH - self.rect.width)
+        self.rect.x = randrange(0, WIDTH - self.rect.width)
         # start position y set to negative, so it doesnt pop up on screen but comes in naturally
         self.rect.y = -100
 
@@ -508,7 +506,7 @@ class Enemy(pygame.sprite.Sprite):
     def shoot(self):
         # give the class the needed information to create bullet object
         # information are given by rect information of the sprite
-        bullet1 = Enemy_Bullet(self.rect.centerx, self.rect.top)
+        bullet1 = Enemy_Bullet(self.rect.centerx, self.rect.bottom)
         all_sprites.add(bullet1)
         laser_sound.play()
         enemy_bullets.add(bullet1)
@@ -520,7 +518,7 @@ class Power_Ups(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         # set drop chances for items to avoid an OP player at the begining
         self.drop_chance = random()
-        if self.drop_chance < 0.4: # 40%
+        if self.drop_chance <= 0.4: # 40%
             self.type = "silver"
         if 0.4 < self.drop_chance < 0.7: # 30%
             self.type = "wings"
@@ -636,4 +634,36 @@ def display_game_over():
                     player.lives = 3
                     player.score_multiplier = 1
                     player.shield = 100
+                    player.score = 0
                     waiting = False
+
+
+def generate_villans(respawn):
+    amount = respawn
+    now = pygame.time.get_ticks()
+
+    # if 20 seconds have passed, add more enemys
+    if (now - last_update["more_villans"]) >= 20_000:
+        last_update["more_villans"] = now
+        amount += 3
+    # for ever enemy to spawn...
+    while amount != 0:
+        # ...generate a random number between 0.0 and 1.0 and safe it
+        selector = random()
+
+        # 60% chance to spawn Meteor()
+        if selector <= 0.7:
+            i = Meteor()
+            all_sprites.add(i)
+            meteors.add(i)
+            amount -= 1
+
+        # 40% chance to spawn Enemy()
+        if selector > 0.7:
+            i = Enemy()
+            all_sprites.add(i)
+            enemys.add(i)
+            amount -= 1
+
+    # if done
+    return amount
