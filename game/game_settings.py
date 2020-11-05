@@ -24,6 +24,8 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 # fonts needs to be pre declared, to blit text on surface through function
 font_name = pygame.font.match_font("Arial")
+# needs to set skins for the enemy sprites withouth random
+enemy_img_counter = 0
 
 # pre defined colors
 BLACK = (0, 0, 0)
@@ -82,29 +84,26 @@ for img in meteor_images_list:
 
 # load enemy images
 enemy_imgs = {}
-enemy_imgs["first"] = []
-enemy_imgs["second"] = []
-enemy_imgs["third"] = []
 
-enemy_imgs["first"] = pygame.image.load(path.join(img_dir, "enemy1_r181_g230_b29.png")).convert()
-enemy_imgs["first"] = pygame.transform.scale(enemy_imgs["first"], (96, 96))
-enemy_imgs["first"].set_colorkey(CONVERT_PLAYER)
+enemy_imgs[0] = pygame.image.load(path.join(img_dir, "enemy1_r181_g230_b29.png")).convert()
+enemy_imgs[0] = pygame.transform.scale(enemy_imgs[0], (96, 96))
+enemy_imgs[0].set_colorkey(CONVERT_PLAYER)
 
-enemy_imgs["second"] = pygame.image.load(path.join(img_dir, "enemy2_r181_g230_b29.png")).convert()
-enemy_imgs["second"] = pygame.transform.scale(enemy_imgs["second"], (96, 96))
-enemy_imgs["second"].set_colorkey(CONVERT_PLAYER)
+enemy_imgs[1] = pygame.image.load(path.join(img_dir, "enemy2_r181_g230_b29.png")).convert()
+enemy_imgs[1] = pygame.transform.scale(enemy_imgs[1], (96, 96))
+enemy_imgs[1].set_colorkey(CONVERT_PLAYER)
 
-enemy_imgs["third"] = pygame.image.load(path.join(img_dir, "enemy3_r181_g230_b29.png")).convert()
-enemy_imgs["third"] = pygame.transform.scale(enemy_imgs["third"], (96, 96))
-enemy_imgs["third"].set_colorkey(CONVERT_PLAYER)
+enemy_imgs[2] = pygame.image.load(path.join(img_dir, "enemy3_r181_g230_b29.png")).convert()
+enemy_imgs[2] = pygame.transform.scale(enemy_imgs[2], (96, 96))
+enemy_imgs[2].set_colorkey(CONVERT_PLAYER)
 
-enemy_imgs["fourth"] = pygame.image.load(path.join(img_dir, "enemy4_r181_g230_b29.png")).convert()
-enemy_imgs["fourth"] = pygame.transform.scale(enemy_imgs["fourth"], (96, 96))
-enemy_imgs["fourth"].set_colorkey(CONVERT_PLAYER)
+enemy_imgs[3] = pygame.image.load(path.join(img_dir, "enemy4_r181_g230_b29.png")).convert()
+enemy_imgs[3] = pygame.transform.scale(enemy_imgs[3], (96, 96))
+enemy_imgs[3].set_colorkey(CONVERT_PLAYER)
 
-enemy_imgs["fifth"] = pygame.image.load(path.join(img_dir, "enemy5_r181_g230_b29.png")).convert()
-enemy_imgs["fifth"] = pygame.transform.scale(enemy_imgs["fifth"], (96, 96))
-enemy_imgs["fifth"].set_colorkey(CONVERT_PLAYER)
+enemy_imgs[4] = pygame.image.load(path.join(img_dir, "enemy5_r181_g230_b29.png")).convert()
+enemy_imgs[4] = pygame.transform.scale(enemy_imgs[4], (96, 96))
+enemy_imgs[4].set_colorkey(CONVERT_PLAYER)
 
 # load score surface image
 score_image = pygame.image.load(path.join(img_dir, "score_display0_32x128_rgb_89_193_53.png")).convert()
@@ -136,6 +135,27 @@ power_up_images["silver"] = pygame.transform.scale(power_up_images["silver"], (6
 power_up_images["gold"] = pygame.image.load(path.join(img_dir, "gold_ring_power_up_32x32p_rgb_white.png")).convert()
 power_up_images["gold"].set_colorkey(WHITE)
 power_up_images["gold"] = pygame.transform.scale(power_up_images["gold"], (64, 64))
+
+
+# load explosions images
+explosion_animation = {}
+explosion_animation["lg"] = [] # lg = large explosion
+explosion_animation["sm"] = [] # sm = small explosion
+explosion_animation["player"] = []
+
+for i in range(9):
+    filename = "regularExplosion0{}.png".format(i)
+    img = pygame.image.load(path.join(img_dir, filename)).convert()
+    img.set_colorkey(BLACK)
+    img_lg = pygame.transform.scale(img, (100, 100))
+    explosion_animation["lg"].append(img_lg)
+    img_sm = pygame.transform.scale(img, (32, 32))
+    explosion_animation["sm"].append(img_sm)
+
+    filename = "sonicExplosion0{}.png".format(i)
+    img = pygame.image.load(path.join(img_dir, filename)).convert()
+    img.set_colorkey(BLACK)
+    explosion_animation["player"].append(img)
 
 
 # sounds loading block
@@ -296,6 +316,10 @@ class Player(pygame.sprite.Sprite):
         if self.hurt_mode:
             self.last_update = now
             if self.shield <= 0:
+                # create explosion image
+                explosion = Explosion(self.rect.center, "player")
+                all_sprites.add(explosion)
+
                 self.lives -= 1
                 # reset multiplier bonus
                 self.score_multiplier = 1
@@ -306,7 +330,7 @@ class Player(pygame.sprite.Sprite):
                 # set hurt_mode to false, to avoid damage for a short time
                 self.hurt_mode = False
                 if self.lives == 0:
-                    display_game_over()
+                        display_game_over()
             else:
                 # player takes damage
                 self.shield -= 20
@@ -456,10 +480,15 @@ class Enemy_Bullet(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
+        global enemy_img_counter
 
         # set random sprite image defined by enemy_imgs dictonary
-        self.image_type = choice(["first", "second", "third", "fourth", "fifth"])
-        self.image = enemy_imgs[self.image_type]
+        # self.image_type = choice(["first", "second", "third", "fourth", "fifth"])
+        # self.image = enemy_imgs[self.image_type]
+        if enemy_img_counter > 4:
+            enemy_img_counter = 0
+        self.image = enemy_imgs[enemy_img_counter]
+        enemy_img_counter += 1
         self.rect = self.image.get_rect()
 
         # save time, so every 3 seconds the enemy will shoot
@@ -527,6 +556,35 @@ class Power_Ups(pygame.sprite.Sprite):
         # kill if it leaves the screen
         if self.rect.top > HEIGHT:
             self.kill()
+
+
+# creates explosion images
+class Explosion(pygame.sprite.Sprite):
+    def __init__(self, center, size):
+        pygame.sprite.Sprite.__init__(self)
+        self.size = size
+        self.image = explosion_animation[self.size][0]
+        self.rect = self.image.get_rect()
+        self.rect.center = center
+        self.frame = 0
+        self.last_update = pygame.time.get_ticks()
+        self.frame_rate = 20
+
+    def update(self):
+        # save new time
+        now = pygame.time.get_ticks()
+        # if 20ms have passed, set new image frame
+        if (now - self.last_update) > self.frame_rate:
+            self.last_update = now
+            self.frame += 1
+            # if the last frame is reached, kill the object
+            if self.frame == len(explosion_animation[self.size]):
+                self.kill()
+            else:
+                center = self.rect.center
+                self.image = explosion_animation[self.size][self.frame]
+                self.rect = self.image.get_rect()
+                self.rect.center = center
 
 
 def end_game():
