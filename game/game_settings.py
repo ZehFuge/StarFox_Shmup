@@ -699,14 +699,14 @@ def generate_villans(respawn):
         selector = random()
 
         # 60% chance to spawn Meteor()
-        if selector <= 0.7:
+        if selector <= 0.8:
             i = Meteor()
             all_sprites.add(i)
             meteors.add(i)
             amount -= 1
 
         # 40% chance to spawn Enemy()
-        if selector > 0.7:
+        if selector > 0.8:
             i = Enemy()
             all_sprites.add(i)
             enemys.add(i)
