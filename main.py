@@ -32,6 +32,7 @@ while running:
         GS.display_welcome()
         welcome_screen = False
 
+
     # check for closing game
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -54,7 +55,12 @@ while running:
     # collision player by meteors
     hits = pygame.sprite.spritecollide(GS.player, GS.meteors, True, pygame.sprite.collide_circle)
     # player loses 1 life, also the hurt_mode is set to false to advoid the impact death
-    if hits:
+    for hit in hits:
+        # create explosion image
+        explosion = GS.Explosion(hit.rect.center, "lg")
+        GS.all_sprites.add(explosion)
+
+        # hurt the player
         GS.player.hurt()
     # if meteor dies through hit, raise respawn variable
     for hit in hits:
@@ -64,7 +70,12 @@ while running:
     # collision player by enemy
     hits = pygame.sprite.spritecollide(GS.player, GS.enemys, True, pygame.sprite.collide_circle)
     # player loses 1 life, also the hurt_mode is set to false to advoid the impact death
-    if hits:
+    for hit in hits:
+        # create explosion image
+        explosion = GS.Explosion(hit.rect.center, "lg")
+        GS.all_sprites.add(explosion)
+
+        # hurt the player
         GS.player.hurt()
     # if enemy dies through hit, raise respawn variable
     for hit in hits:
@@ -75,6 +86,11 @@ while running:
     hits = pygame.sprite.spritecollide(GS.player, GS.enemy_bullets, True)
     # remove player HP if hit
     for hit in hits:
+        # create explosion image
+        explosion = GS.Explosion(hit.rect.center, "sm")
+        GS.all_sprites.add(explosion)
+
+        # hurt the player
         GS.player.hurt()
 
 
@@ -82,6 +98,11 @@ while running:
     hits = pygame.sprite.groupcollide(GS.meteors, GS.bullets, True, True)
     # if meteor dies through hit, raise respawn variable
     for hit in hits:
+        # create explosion image
+        explosion = GS.Explosion(hit.rect.center, "lg")
+        GS.all_sprites.add(explosion)
+
+        # calculate new player score
         GS.player.score += (100 - hit.radius) * GS.player.score_multiplier
         respawn += 1
         # 5% chance to drop power up by meteor kill
@@ -95,6 +116,11 @@ while running:
     hits = pygame.sprite.groupcollide(GS.enemys, GS.bullets, True, True)
     # if enemy dies through hit, raise respawn variable
     for hit in hits:
+        # create explosion image
+        explosion = GS.Explosion(hit.rect.center, "lg")
+        GS.all_sprites.add(explosion)
+
+        # calculate new player score
         GS.player.score += 100 * GS.player.score_multiplier
         respawn += 1
         # 5% chance to drop power up by enemy kill
