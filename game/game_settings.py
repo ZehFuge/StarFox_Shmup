@@ -50,15 +50,24 @@ snd_dir = path.join(path.dirname(__file__), "snd")
 
 # load pictures and make them transparent
 # images need to be converted by convert(), if not, the frame rate will suffer due to calculation
-player_img = pygame.image.load(path.join(img_dir, "arwing_r181_g230_b29.png")).convert()
-player_img.set_colorkey(CONVERT_PLAYER)
+player_imgs = {}
+player_imgs["idle"] = pygame.image.load(path.join(img_dir, "arwing_r181_g230_b29.png")).convert()
+player_imgs["idle"].set_colorkey(CONVERT_PLAYER)
+
+player_imgs["left"] = pygame.image.load(path.join(img_dir, "arwing_left_rgb_181_230_29.png")).convert()
+player_imgs["left"].set_colorkey(CONVERT_PLAYER)
+
+player_imgs["right"] = pygame.image.load(path.join(img_dir, "arwing_right_rgb_181_230_29.png")).convert()
+player_imgs["right"].set_colorkey(CONVERT_PLAYER)
 
 # set player lives image
-player_live_img = player_img
+player_live_img = player_imgs["idle"]
 
 # resize the player sprite after copying as mini format for lives display
 # resize the player sprite: pygame.transform.scale(image, (new_width, new_height))
-player_img = pygame.transform.scale(player_img, (96, 96))
+player_imgs["idle"] = pygame.transform.scale(player_imgs["idle"], (96, 96))
+player_imgs["left"] = pygame.transform.scale(player_imgs["left"], (96, 96))
+player_imgs["right"] = pygame.transform.scale(player_imgs["right"], (96, 96))
 
 # load background image
 background_img = pygame.image.load(path.join(img_dir, "space_background_1200x800_nsm.png")).convert()
@@ -166,9 +175,32 @@ pygame.mixer.music.set_volume(0.1) # 0.3
 # set game_music to inifinit loop
 pygame.mixer.music.play(loops=-1)
 
-# load shooting sound
-laser_sound = pygame.mixer.Sound(path.join(snd_dir, "laser_sfx.ogg"))
-laser_sound.set_volume(0.2)
+# load shooting sounds
+laser_sound = {}
+laser_sound[0] = pygame.mixer.Sound(path.join(snd_dir, "single_laser_sfx.ogg"))
+laser_sound[0].set_volume(0.3)
+
+laser_sound[1] = pygame.mixer.Sound(path.join(snd_dir, "dual_laser_sfx.ogg"))
+laser_sound[1].set_volume(0.3)
+
+laser_sound[2] = pygame.mixer.Sound(path.join(snd_dir, "tripple_laser_sfx.ogg"))
+laser_sound[2].set_volume(0.3)
+
+# load power up sounds
+power_up_sound = {}
+power_up_sound["rings"] = pygame.mixer.Sound(path.join(snd_dir, "power_up_ring.ogg"))
+power_up_sound["rings"].set_volume(0.2)
+
+power_up_sound["wings"] = pygame.mixer.Sound(path.join(snd_dir, "power_up_wings.ogg"))
+power_up_sound["wings"].set_volume(0.2)
+
+power_up_sound["double"] = pygame.mixer.Sound(path.join(snd_dir, "power_up_multi.ogg"))
+power_up_sound["double"].set_volume(0.7)
+
+
+# load explosion sound
+explosion_sound = pygame.mixer.Sound(path.join(snd_dir, "explosion_sfx.ogg"))
+explosion_sound.set_volume(0.1)
 
 
 # declare sprite groups
@@ -190,7 +222,7 @@ class Player(pygame.sprite.Sprite):
         # init the sprite
         pygame.sprite.Sprite.__init__(self)
         # set player image and get its rect to work
-        self.image = player_img
+        self.image = player_imgs["idle"]
         self.rect = self.image.get_rect()
 
         # set start position for the player sprite
@@ -236,6 +268,7 @@ class Player(pygame.sprite.Sprite):
         # also check if player trys to leave the screen
         if keystate[pygame.K_a] \
                 or keystate[pygame.K_LEFT]:
+            self.image = player_imgs["left"]
             self.move_speed = -10
             # wall check screen.left
             if (self.rect.left + self.move_speed) > 0:
@@ -243,6 +276,7 @@ class Player(pygame.sprite.Sprite):
 
         if keystate[pygame.K_d] \
                 or keystate[pygame.K_RIGHT]:
+            self.image = player_imgs["right"]
             self.move_speed = 10
             # wall check screen.right
             if (self.rect.right + self.move_speed) < WIDTH:
@@ -265,6 +299,11 @@ class Player(pygame.sprite.Sprite):
         if keystate[pygame.K_SPACE]:
             self.shoot()
 
+        # reset player image if a or d got released
+        if not keystate[pygame.K_a]:
+            if not keystate[pygame.K_d]:
+                self.image = player_imgs["idle"]
+
     # make the player shoot after pressing the space bar
     def shoot(self):
         # set the time of pressing space to a variable
@@ -282,7 +321,7 @@ class Player(pygame.sprite.Sprite):
                 # information are given by rect information of the sprite
                 bullet1 = Bullet(self.rect.centerx, self.rect.top)
                 all_sprites.add(bullet1)
-                laser_sound.play()
+                laser_sound[0].play()
                 bullets.add(bullet1)
 
             # double shot
@@ -293,7 +332,7 @@ class Player(pygame.sprite.Sprite):
                 all_sprites.add(bullet2)
                 bullets.add(bullet1)
                 bullets.add(bullet2)
-                laser_sound.play()
+                laser_sound[1].play()
 
             # tripple shot
             if player.power_level >= 3:
@@ -306,7 +345,7 @@ class Player(pygame.sprite.Sprite):
                 bullets.add(bullet0)
                 bullets.add(bullet1)
                 bullets.add(bullet2)
-                laser_sound.play()
+                laser_sound[2].play()
 
 
     # this function activates to avoid taking multiple damage at once
@@ -316,9 +355,10 @@ class Player(pygame.sprite.Sprite):
         if self.hurt_mode:
             self.last_update = now
             if self.shield <= 0:
-                # create explosion image
+                # create explosion image and play its sound
                 explosion = Explosion(self.rect.center, "player")
                 all_sprites.add(explosion)
+                explosion_sound.play()
 
                 self.lives -= 1
                 # reset multiplier bonus
@@ -526,7 +566,7 @@ class Enemy(pygame.sprite.Sprite):
         # information are given by rect information of the sprite
         bullet1 = Enemy_Bullet(self.rect.centerx, self.rect.bottom)
         all_sprites.add(bullet1)
-        laser_sound.play()
+        laser_sound[0].play()
         enemy_bullets.add(bullet1)
 
 
@@ -692,7 +732,10 @@ def generate_villans(respawn):
     # if 20 seconds have passed, add more enemys
     if (now - last_update["more_villans"]) >= 20_000:
         last_update["more_villans"] = now
-        amount += 3
+        if amount < 20:
+            amount += 2
+        else:
+            amount = 10
     # for ever enemy to spawn...
     while amount != 0:
         # ...generate a random number between 0.0 and 1.0 and safe it
@@ -719,3 +762,20 @@ def generate_villans(respawn):
 def safe_amount(respawn):
     safed_amount = respawn
 
+
+def draw_the_rest():
+    # GS.screen.fill(GS.BLACK)
+    screen.blit(background_img, background_img_rect)
+    all_sprites.draw(screen)
+
+    # draw / render game interface
+    # needs to be drawn last, to stay on top layer
+    # draw_lives(surface, x, y, lives, img)
+    draw_lives(screen, WIDTH / 2, 5, player.lives, player_live_img)
+    # draw the players hp bar
+    draw_shield_bar(screen, WIDTH - 210, 10, player.shield)
+    # draw score surface
+    draw_score()
+    # draw the multiplier of the player
+    draw_multi()
+    # draw_text(surface, text, size, x, y)
