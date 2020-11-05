@@ -51,7 +51,7 @@ snd_dir = path.join(path.dirname(__file__), "snd")
 # load pictures and make them transparent
 # images need to be converted by convert(), if not, the frame rate will suffer due to calculation
 player_imgs = {}
-player_imgs["idle"] = pygame.image.load(path.join(img_dir, "arwing_r181_g230_b29.png")).convert()
+player_imgs["idle"] = pygame.image.load(path.join(img_dir, "arwing_idle_rgb_181_230_29.png")).convert()
 player_imgs["idle"].set_colorkey(CONVERT_PLAYER)
 
 player_imgs["left"] = pygame.image.load(path.join(img_dir, "arwing_left_rgb_181_230_29.png")).convert()
@@ -759,10 +759,6 @@ def generate_villans(respawn):
     return amount
 
 
-def safe_amount(respawn):
-    safed_amount = respawn
-
-
 def draw_the_rest():
     # GS.screen.fill(GS.BLACK)
     screen.blit(background_img, background_img_rect)
@@ -779,3 +775,112 @@ def draw_the_rest():
     # draw the multiplier of the player
     draw_multi()
     # draw_text(surface, text, size, x, y)
+
+
+def collision_check():
+    # set variable to store amount of "new-spawners"
+    respawn = 0
+
+    # player hit by others
+    # collision player by meteors
+    hits = pygame.sprite.spritecollide(player, meteors, True, pygame.sprite.collide_circle)
+    # player loses 1 life, also the hurt_mode is set to false to advoid the impact death
+    for hit in hits:
+        # create explosion image
+        explosion = Explosion(hit.rect.center, "lg")
+        all_sprites.add(explosion)
+
+        # hurt the player
+        player.hurt()
+
+        # if meteor dies through hit, raise respawn variable
+        respawn += 1
+
+    # collision player by enemy
+    hits = pygame.sprite.spritecollide(player, enemys, True, pygame.sprite.collide_circle)
+    # player loses 1 life, also the hurt_mode is set to false to advoid the impact death
+    for hit in hits:
+        # create explosion image
+        explosion = Explosion(hit.rect.center, "lg")
+        all_sprites.add(explosion)
+
+        # hurt the player
+        player.hurt()
+
+        # if enemy dies through hit, raise respawn variable
+        respawn += 1
+
+    # collision player by enemy_bullets
+    hits = pygame.sprite.spritecollide(player, enemy_bullets, True)
+    # remove player HP if hit
+    for hit in hits:
+        # create explosion image
+        explosion = Explosion(hit.rect.center, "sm")
+        all_sprites.add(explosion)
+
+        # hurt the player
+        player.hurt()
+
+    # collision meteor by bullets
+    hits = pygame.sprite.groupcollide(meteors, bullets, True, True)
+    # if meteor dies through hit, raise respawn variable
+    for hit in hits:
+        # create explosion image and play its sound
+        explosion = Explosion(hit.rect.center, "lg")
+        all_sprites.add(explosion)
+        explosion_sound.play()
+
+        # calculate new player score
+        player.score += (100 - hit.radius) * player.score_multiplier
+        respawn += 1
+        # 5% chance to drop power up by meteor kill
+        if random() >= 0.95:
+            pow = Power_Ups(hit.rect.center[0], hit.rect.center[1])
+            all_sprites.add(pow)
+            power_ups.add(pow)
+
+    # collision enemys by bullets
+    hits = pygame.sprite.groupcollide(enemys, bullets, True, True)
+    # if enemy dies through hit, raise respawn variable
+    for hit in hits:
+        # create explosion image and play its sound
+        explosion = Explosion(hit.rect.center, "lg")
+        all_sprites.add(explosion)
+        explosion_sound.play()
+
+        # calculate new player score
+        player.score += 100 * player.score_multiplier
+        respawn += 1
+        # 5% chance to drop power up by enemy kill
+        if random() > 0.95:
+            pow = Power_Ups(hit.rect.center[0], hit.rect.center[1])
+            all_sprites.add(pow)
+            power_ups.add(pow)
+
+    # collision player by power up
+    hits = pygame.sprite.groupcollide(power_ups, players, True, False)
+    for hit in hits:
+        # enhence the quantity of players lasers
+        if hit.type == "wings":
+            power_up_sound["wings"].play()
+            player.power_level += 1
+        # raise the multiplicator score of the player
+        if hit.type == "double":
+            power_up_sound["double"].play()
+            player.score_multiplier += 1
+        # heal player for a little bit
+        if hit.type == "silver":
+            power_up_sound["rings"].play()
+            player.shield += 15
+            # check if players life raised above 100 and correct it
+            if player.shield > 100:
+                player.shield = 100
+        # heal player for a big amount
+        if hit.type == "gold":
+            power_up_sound["rings"].play()
+            player.shield += 50
+            # check if players life raised above 100 and correct it
+            if player.shield > 100:
+                player.shield = 100
+
+    return respawn
