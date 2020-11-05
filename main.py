@@ -20,7 +20,7 @@ game_over_screen = False
 last_update = pygame.time.get_ticks()
 
 # enemy respawn variable for testing
-respawn = 10
+respawn = 4
 
 # main loop block
 while running:
@@ -98,9 +98,10 @@ while running:
     hits = pygame.sprite.groupcollide(GS.meteors, GS.bullets, True, True)
     # if meteor dies through hit, raise respawn variable
     for hit in hits:
-        # create explosion image
+        # create explosion image and play its sound
         explosion = GS.Explosion(hit.rect.center, "lg")
         GS.all_sprites.add(explosion)
+        GS.explosion_sound.play()
 
         # calculate new player score
         GS.player.score += (100 - hit.radius) * GS.player.score_multiplier
@@ -116,9 +117,10 @@ while running:
     hits = pygame.sprite.groupcollide(GS.enemys, GS.bullets, True, True)
     # if enemy dies through hit, raise respawn variable
     for hit in hits:
-        # create explosion image
+        # create explosion image and play its sound
         explosion = GS.Explosion(hit.rect.center, "lg")
         GS.all_sprites.add(explosion)
+        GS.explosion_sound.play()
 
         # calculate new player score
         GS.player.score += 100 * GS.player.score_multiplier
@@ -139,18 +141,22 @@ while running:
     for hit in hits:
         # enhence the quantity of players lasers
         if hit.type == "wings":
+            GS.power_up_sound["wings"].play()
             GS.player.power_level += 1
         # raise the multiplicator score of the player
         if hit.type == "double":
+            GS.power_up_sound["double"].play()
             GS.player.score_multiplier += 1
         # heal player for a little bit
         if hit.type == "silver":
+            GS.power_up_sound["rings"].play()
             GS.player.shield += 15
             # check if players life raised above 100 and correct it
             if GS.player.shield > 100:
                 GS.player.shield = 100
         # heal player for a big amount
         if hit.type == "gold":
+            GS.power_up_sound["rings"].play()
             GS.player.shield += 50
             # check if players life raised above 100 and correct it
             if GS.player.shield > 100:
@@ -158,21 +164,7 @@ while running:
 
 
     # draw / render sprites
-    # GS.screen.fill(GS.BLACK)
-    GS.screen.blit(GS.background_img, GS.background_img_rect)
-    GS.all_sprites.draw(GS.screen)
-
-    # draw / render game interface
-    # needs to be drawn last, to stay on top layer
-    # draw_lives(surface, x, y, lives, img)
-    GS.draw_lives(GS.screen, GS.WIDTH / 2, 5, GS.player.lives, GS.player_live_img)
-    # draw the players hp bar
-    GS.draw_shield_bar(GS.screen, GS.WIDTH - 210, 10, GS.player.shield)
-    # draw score surface
-    GS.draw_score()
-    # draw the multiplier of the player
-    GS.draw_multi()
-    # draw_text(surface, text, size, x, y)
+    GS.draw_the_rest()
 
 
     # after drawing, flip (CAF.GS).screen
