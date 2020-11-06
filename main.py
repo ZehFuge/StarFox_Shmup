@@ -19,7 +19,7 @@ game_over_screen = False
 # set last_update for time events
 last_update = pygame.time.get_ticks()
 
-# enemy respawn variable for testing
+# start the game with just 4 villans spawning
 respawn = 4
 
 # main loop block
