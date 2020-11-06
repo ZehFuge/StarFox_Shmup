@@ -725,6 +725,7 @@ def display_game_over():
                     waiting = False
 
 
+# respawns enemys by given amount
 def generate_villans(respawn):
     amount = respawn
     now = pygame.time.get_ticks()
@@ -759,7 +760,7 @@ def generate_villans(respawn):
     return amount
 
 
-def draw_the_rest():
+def draw_everything():
     # GS.screen.fill(GS.BLACK)
     screen.blit(background_img, background_img_rect)
     all_sprites.draw(screen)
@@ -777,6 +778,7 @@ def draw_the_rest():
     # draw_text(surface, text, size, x, y)
 
 
+# checks for collision and raises the respawn value by every killed sprite
 def collision_check():
     # set variable to store amount of "new-spawners"
     respawn = 0
