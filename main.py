@@ -60,7 +60,7 @@ while running:
 
 
     # draw / render sprites
-    GS.draw_the_rest()
+    GS.draw_everything()
 
 
     # after drawing, flip (CAF.GS).screen
