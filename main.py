@@ -51,7 +51,6 @@ while running:
 
 
     # check if enemys need to be respawned
-    # if respawn > 0:
     respawn = GS.generate_villans(respawn)
 
 
