@@ -30,6 +30,7 @@ enemy_img_counter = 0
 # pre defined colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+YELLOW = (255, 255, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
@@ -60,14 +61,20 @@ player_imgs["left"].set_colorkey(CONVERT_PLAYER)
 player_imgs["right"] = pygame.image.load(path.join(img_dir, "arwing_right_rgb_181_230_29.png")).convert()
 player_imgs["right"].set_colorkey(CONVERT_PLAYER)
 
-# set player lives image
-player_live_img = player_imgs["idle"]
-
 # resize the player sprite after copying as mini format for lives display
 # resize the player sprite: pygame.transform.scale(image, (new_width, new_height))
 player_imgs["idle"] = pygame.transform.scale(player_imgs["idle"], (96, 96))
 player_imgs["left"] = pygame.transform.scale(player_imgs["left"], (96, 96))
 player_imgs["right"] = pygame.transform.scale(player_imgs["right"], (96, 96))
+
+# set player lives image
+player_live_img = player_imgs["idle"]
+player_live_img = pygame.transform.scale(player_live_img, (64, 64))
+
+
+# load skin for health / shield bar of player
+shield_bar_image = pygame.image.load(path.join(img_dir, "shield_bar_overlap_215x45p_rgb_red.png")).convert()
+shield_bar_image.set_colorkey(RED)
 
 # load background image
 background_img = pygame.image.load(path.join(img_dir, "space_background_1200x800_nsm.png")).convert()
@@ -166,15 +173,25 @@ for i in range(9):
     img.set_colorkey(BLACK)
     explosion_animation["player"].append(img)
 
+# load startmenu images
+startmenu_images = {}
+startmenu_images["start_idle"] = pygame.image.load(path.join(img_dir, "startmenu_start_button_rgb_red.png")).convert()
+startmenu_images["start_idle"].set_colorkey(RED)
+startmenu_images["start_mouse_over"] = pygame.image.load(path.join(img_dir, "startmenu_start_button_mouseover_rgb_red.png")).convert()
+startmenu_images["start_mouse_over"].set_colorkey(RED)
+
+startmenu_images["howto_idle"] = pygame.image.load(path.join(img_dir, "startmenu_anleitung_button_rgb_red.png")).convert()
+startmenu_images["howto_idle"].set_colorkey(RED)
+startmenu_images["howto_mouse_over"] = pygame.image.load(path.join(img_dir, "startmenu_anleitung_button_mouseover_rgb_red.png")).convert()
+startmenu_images["howto_mouse_over"].set_colorkey(RED)
+
+startmenu_images["scores_idle"] = pygame.image.load(path.join(img_dir, "startmenu_scores_button_rgb_red.png")).convert()
+startmenu_images["scores_idle"].set_colorkey(RED)
+startmenu_images["scores_mouse_over"] = pygame.image.load(path.join(img_dir, "startmenu_scores_button_mouseover_rgb_red.png")).convert()
+startmenu_images["scores_mouse_over"].set_colorkey(RED)
+
 
 # sounds loading block
-# load game theme
-game_music = pygame.mixer.music.load(path.join(snd_dir, "corneria_theme_music.mp3"))
-# set game_music loudness
-pygame.mixer.music.set_volume(0.1) # 0.3
-# set game_music to inifinit loop
-pygame.mixer.music.play(loops=-1)
-
 # load shooting sounds
 laser_sound = {}
 laser_sound[0] = pygame.mixer.Sound(path.join(snd_dir, "single_laser_sfx.ogg"))
@@ -201,6 +218,11 @@ power_up_sound["double"].set_volume(0.7)
 # load explosion sound
 explosion_sound = pygame.mixer.Sound(path.join(snd_dir, "explosion_sfx.ogg"))
 explosion_sound.set_volume(0.1)
+
+
+# load good luck sound (plays after game gets started)
+good_luck_sound = pygame.mixer.Sound(path.join(snd_dir, "good_luck.ogg"))
+good_luck_sound.set_volume(0.8)
 
 
 # declare sprite groups
@@ -286,7 +308,7 @@ class Player(pygame.sprite.Sprite):
                 or keystate[pygame.K_UP]:
             self.move_speed = -7
             # wall check screen.top
-            if (self.rect.top + self.move_speed) > 0:
+            if (self.rect.top + self.move_speed) > 75:
                 self.rect.y += self.move_speed
 
         if keystate[pygame.K_s] \
@@ -374,8 +396,27 @@ class Player(pygame.sprite.Sprite):
             else:
                 # player takes damage
                 self.shield -= 20
+
                 # reset multiplier bonus
                 self.score_multiplier = 1
+
+                if self.shield <= 0:
+                    # create explosion image and play its sound
+                    explosion = Explosion(self.rect.center, "player")
+                    all_sprites.add(explosion)
+                    explosion_sound.play()
+
+                    self.lives -= 1
+                    # reset multiplier bonus
+                    self.score_multiplier = 1
+                    # reset the power level of the weapon
+                    self.power_level = 1
+                    self.shield = 100
+                    self.hide = True
+                    # set hurt_mode to false, to avoid damage for a short time
+                    self.hurt_mode = False
+                    if self.lives == 0:
+                        display_game_over()
 
         if not self.hurt_mode:
             if now - self.last_update > int(self.hurt_delay):
@@ -627,15 +668,17 @@ class Explosion(pygame.sprite.Sprite):
                 self.rect.center = center
 
 
+# quits pygame and the python
 def end_game():
     quit()
     exit()
 
 
+# draws the lives of the player
 def draw_lives(surface, x, y, lives, img):
     for i in range(lives):
         img_rect = img.get_rect()
-        img_rect.x = x + 30 * i
+        img_rect.x = x + 64 * i
         img_rect.y = y
         surface.blit(img, img_rect)
 
@@ -654,6 +697,7 @@ def draw_score():
     screen.blit(score_image, (5, 5))
     draw_text(screen, str(player.score), 38, WHITE, (score_image_rect.width / 2), (score_image_rect.y + 25))
 
+
 # draw the multiplicator of the player
 def draw_multi():
     multi_image_rect.x = score_image_rect.width + 10
@@ -661,47 +705,96 @@ def draw_multi():
     screen.blit(multi_image, (multi_image_rect.x, 5))
     draw_text(screen, str(player.score_multiplier), 38, WHITE, (multi_image_rect.x + (multi_image_rect.width / 2)), (multi_image_rect.y + 20))
 
+
 # draw the hp bar of the player
 def draw_shield_bar(surface, x, y, shield):
+    # sets color for health bar depend on health level
+    if shield > 60:
+        bar_color = GREEN
+    if 30 < shield <= 60:
+        bar_color = YELLOW
+    if  shield <= 30:
+        bar_color = RED
+
+    # correct shield amount if it drops below 0
     if shield < 0:
         shield = 0
+
     # set size for the hp bar
-    BAR_LENGTH = 200
-    BAR_HEIGHT = 30
+    BAR_LENGTH = 211
+    BAR_HEIGHT = 35
+
     # if shield gets lower, the shield bar will decrease in length
     fill = (shield / 100) * BAR_LENGTH
     outline_rect = pygame.Rect(x, y, BAR_LENGTH, BAR_HEIGHT)
     fill_rect = pygame.Rect(x, y, fill, BAR_HEIGHT)
     outline_rect = pygame.Rect(x, y, fill, BAR_HEIGHT)
-    # draw the hp bar
-    pygame.draw.rect(surface, GREEN, fill_rect)
+
     # draw the outline of the hp bar
-    pygame.draw.rect(surface, WHITE, outline_rect, 1)
+    pygame.draw.rect(surface, WHITE, (x, y, 200, 35), 0)
 
 
-def display_welcome():
-    screen.blit(background_img, background_img_rect)
-    draw_text(screen, "Star Fox", 260, BLACK, (WIDTH / 2), HEIGHT / 8)
-    draw_text(screen, "Star Fox", 256, WHITE, (WIDTH / 2), HEIGHT / 8)
+    # draw the hp bar
+    pygame.draw.rect(surface, bar_color, (1190, 30, -fill, 35), 0)
 
-    draw_text(screen, "Shmup!", 260, BLACK, (WIDTH / 2), HEIGHT / 2.5)
-    draw_text(screen, "Shmup!", 256, WHITE, (WIDTH / 2), HEIGHT / 2.5)
+    # draw shield bar overlay for design
+    screen.blit(shield_bar_image, (977, 0))
 
-    draw_text(screen, "Press F button to start", 66, BLACK, (WIDTH / 2), (HEIGHT / 1.2))
-    draw_text(screen, "Press F button to start", 64, WHITE, (WIDTH / 2), HEIGHT / 1.2)
 
-    pygame.display.flip()
+
+# draw the menu screen at game begin
+def startmenu():
     waiting = True
     while waiting:
+        # draw background and logo
+        screen.blit(background_img, background_img_rect)
+        draw_text(screen, "Star Fox", 260, BLACK, (WIDTH / 2), 5)
+        draw_text(screen, "Star Fox", 256, WHITE, (WIDTH / 2), 5)
+
+        draw_text(screen, "Shmup!", 260, BLACK, (WIDTH / 2), 200)
+        draw_text(screen, "Shmup!", 256, WHITE, (WIDTH / 2), 200)
+
+        # configurate buttons and their functions
+        start_button = pygame.Rect(80, 550, 300, 100)
+        tutorial_button = pygame.Rect(430, 550, 300, 100)
+        highscore_button = pygame.Rect(780, 550, 300, 100)
+
+        # save mouse x, y and input
+        mx, my = pygame.mouse.get_pos()
+        mouse_pressed = pygame.mouse.get_pressed()
         clock.tick(FPS)
+
+        # draw buttons and check for mouse collide
+        if start_button.collidepoint(mx, my):
+            screen.blit(startmenu_images["start_mouse_over"], start_button)
+        else:
+            screen.blit(startmenu_images["start_idle"], start_button)
+
+        if tutorial_button.collidepoint(mx, my):
+            screen.blit(startmenu_images["howto_mouse_over"], tutorial_button)
+        else:
+            screen.blit(startmenu_images["howto_idle"], tutorial_button)
+
+        if highscore_button.collidepoint(mx, my):
+            screen.blit(startmenu_images["scores_mouse_over"], highscore_button)
+        else:
+            screen.blit(startmenu_images["scores_idle"], highscore_button)
+
+
+        # check if mouse touches button
+        if start_button.collidepoint((mx, my)) \
+                and mouse_pressed[0]:
+            good_luck_sound.play()
+            waiting = False
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 end_game()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_f:
-                    waiting = False
+
+        pygame.display.flip()
 
 
+# draw the game over screen at the end of the game
 def display_game_over():
     screen.blit(background_img, background_img_rect)
     draw_text(screen, "Your score:", 128, WHITE, (WIDTH / 2), 10)
@@ -760,17 +853,21 @@ def generate_villans(respawn):
     return amount
 
 
+# draws the sprites and information bars
 def draw_everything():
     # GS.screen.fill(GS.BLACK)
     screen.blit(background_img, background_img_rect)
+
     all_sprites.draw(screen)
 
     # draw / render game interface
     # needs to be drawn last, to stay on top layer
+    # draw the information bar background
+    pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, 75), 0)
     # draw_lives(surface, x, y, lives, img)
-    draw_lives(screen, WIDTH / 2, 5, player.lives, player_live_img)
+    draw_lives(screen, (multi_image_rect.x + multi_image_rect.width) + 10, 5, player.lives, player_live_img)
     # draw the players hp bar
-    draw_shield_bar(screen, WIDTH - 210, 10, player.shield)
+    draw_shield_bar(screen, WIDTH - 221, 30, player.shield)
     # draw score surface
     draw_score()
     # draw the multiplier of the player
@@ -886,3 +983,23 @@ def collision_check():
                 player.shield = 100
 
     return respawn
+
+
+def jukebox(songtype):
+    if songtype == "stop":
+        pygame.mixer.music.stop()
+
+    if songtype == "menu":
+        jukebox = pygame.mixer.music.load(path.join(snd_dir, "startmenu_music.mp3"))
+        # set loudness of the track
+        pygame.mixer.music.set_volume(0.5)
+        # set infinite loop
+        pygame.mixer.music.play(loops=-1)
+
+    if songtype == "game":
+        # load game theme in function jukebox
+        jukebox = pygame.mixer.music.load(path.join(snd_dir, "corneria_theme_music.mp3"))
+        # set loudness of the track
+        pygame.mixer.music.set_volume(0.1)
+        # set infinite loop
+        pygame.mixer.music.play(loops=-1)
