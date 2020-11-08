@@ -13,14 +13,19 @@ pygame.init()
 running = True
 
 # display welcome screen
-welcome_screen = True
+startmenu_screen = True
 game_over_screen = False
 
 # set last_update for time events
-last_update = pygame.time.get_ticks()
+last_update = {}
+last_update["game_start"] = pygame.time.get_ticks()
 
-# start the game with just 4 villans spawning
-respawn = 4
+# store amount for respawn of villans
+respawn = 0
+
+# needed to spawn creatures at the beginning of the game
+start_spawn = False
+start_music = False
 
 # main loop block
 while running:
@@ -28,9 +33,30 @@ while running:
     GS.clock.tick(GS.FPS)
 
     # check if welcome screen should be displayed
-    if welcome_screen:
-        GS.display_welcome()
-        welcome_screen = False
+    if startmenu_screen:
+        GS.jukebox("menu")
+        GS.startmenu()
+        last_update["game_start"] = pygame.time.get_ticks()
+        GS.jukebox("stop")
+        start_spawn = True
+        start_music = True
+        startmenu_screen = False
+
+    # wait for few seconds for villans to spawn and music to play
+    # also good luck sound can ring through
+    # and the player can be prepared for the enemys
+    now = pygame.time.get_ticks()
+    if not startmenu_screen \
+            and start_music \
+            and (now - last_update["game_start"]) > 1000:
+        GS.jukebox("game")
+        start_music = False
+
+    if not startmenu_screen \
+        and start_spawn \
+        and (now - last_update["game_start"]) > 2000:
+        respawn = 4
+        start_spawn = False
 
 
     # check for closing game
