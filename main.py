@@ -1,7 +1,6 @@
 # library import block
 import pygame
 from game import *
-import random
 
 
 # init block
@@ -35,7 +34,7 @@ while running:
     # check if welcome screen should be displayed
     if startmenu_screen:
         GS.jukebox("menu")
-        GS.startmenu()
+        GS.start_menu()
         last_update["game_start"] = pygame.time.get_ticks()
         GS.jukebox("stop")
         start_spawn = True
