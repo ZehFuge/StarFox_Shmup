@@ -11,25 +11,47 @@ pygame.init()
 # set mainloop var
 running = True
 
+
 # display welcome screen
 startmenu_screen = True
 game_over_screen = False
+
 
 # set last_update for time events
 last_update = {}
 last_update["game_start"] = pygame.time.get_ticks()
 
+
 # store amount for respawn of villans
 respawn = 0
+
 
 # needed to spawn creatures at the beginning of the game
 start_spawn = False
 start_music = False
 
+
 # main loop block
 while running:
     # keep the loop running at the right speed
     GS.clock.tick(GS.FPS)
+
+    # check if player lost live and shall not be drawn
+    if GS.player.hide:
+        GS.all_sprites.remove(GS.player)
+    if not GS.player.hide:
+        GS.all_sprites.add(GS.player)
+
+    # check if player died
+    if GS.player.lives == 0:
+        GS.display_game_over()
+
+        # if player didnt closed the game
+        respawn = GS.reset_game()
+        last_update["game_start"] = pygame.time.get_ticks()
+        start_music = True
+        start_spawn = True
+
 
     # check if welcome screen should be displayed
     if startmenu_screen:
@@ -62,13 +84,6 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             GS.end_game()
-
-
-    # check if player lost live and shall not be drawn
-    if GS.player.hide:
-        GS.all_sprites.remove(GS.player)
-    if not GS.player.hide:
-        GS.all_sprites.add(GS.player)
 
 
     # update / move sprites
