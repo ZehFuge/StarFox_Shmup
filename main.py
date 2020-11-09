@@ -39,7 +39,7 @@ while running:
 
     # check if player died
     if GS.player.lives == 0:
-        GS.display_game_over()
+        startmenu_screen = GS.display_game_over()
 
         # if player didnt closed the game
         respawn = GS.reset_game()
@@ -70,7 +70,8 @@ while running:
 
     if not startmenu_screen \
         and start_spawn \
-        and (now - last_update["game_start"]) > 2000:
+        and (now - last_update["game_start"]) > 3000:
+        print("start spawning ma bois")
         respawn = 4
         start_spawn = False
 
