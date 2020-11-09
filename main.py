@@ -36,11 +36,6 @@ while running:
     # keep the loop running at the right speed
     GS.clock.tick(GS.FPS)
 
-    # check if player lost live and shall not be drawn
-    if GS.player.hide:
-        GS.all_sprites.remove(GS.player)
-    if not GS.player.hide:
-        GS.all_sprites.add(GS.player)
 
     # check if player died
     if GS.player.lives == 0:
