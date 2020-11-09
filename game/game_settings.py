@@ -175,9 +175,23 @@ for i in range(9):
 
 # load startmenu images
 startmenu_images = {}
-# load close button
-startmenu_images["close_idle"] = pygame.image.load(path.join(img_dir, "close_button_64x64p.png")).convert()
-startmenu_images["close_mouseover"] = pygame.image.load(path.join(img_dir, "close_button_mouseover_64x64p.png")).convert()
+# load back button
+startmenu_images["back_idle"] = pygame.image.load(path.join(img_dir, "startmenu_back_button_rgb_red.png")).convert()
+startmenu_images["back_idle"].set_colorkey(RED)
+startmenu_images["back_mouseover"] = pygame.image.load(path.join(img_dir, "startmenu_back_button_mouseover_rgb_red.png")).convert()
+startmenu_images["back_mouseover"].set_colorkey(RED)
+
+# load menu button
+startmenu_images["menu_idle"] = pygame.image.load(path.join(img_dir, "startmenu_menu_button_rgb_red.png")).convert()
+startmenu_images["menu_idle"].set_colorkey(RED)
+startmenu_images["menu_mouseover"] = pygame.image.load(path.join(img_dir, "startmenu_menu_button_mouseoverlay_rgb_red.png")).convert()
+startmenu_images["menu_mouseover"].set_colorkey(RED)
+
+# load again button
+startmenu_images["again_idle"] = pygame.image.load(path.join(img_dir, "startmenu_again_button_rgb_red.png")).convert()
+startmenu_images["again_idle"].set_colorkey(RED)
+startmenu_images["again_mouseover"] = pygame.image.load(path.join(img_dir, "startmenu_again_button_mouseover_rgb_red.png")).convert()
+startmenu_images["again_mouseover"].set_colorkey(RED)
 
 # load red fox symbol
 startmenu_images["redfox_logo"] = pygame.image.load(path.join(img_dir, "teamlogo_320x320p_rgb_black.png")).convert()
@@ -191,9 +205,9 @@ startmenu_images["start_mouse_over"] = pygame.image.load(path.join(img_dir, "sta
 startmenu_images["start_mouse_over"].set_colorkey(RED)
 
 # load tutorial button (of startmenu)
-startmenu_images["howto_idle"] = pygame.image.load(path.join(img_dir, "startmenu_anleitung_button_rgb_red.png")).convert()
+startmenu_images["howto_idle"] = pygame.image.load(path.join(img_dir, "startmenu_howto_button_rgb_red.png")).convert()
 startmenu_images["howto_idle"].set_colorkey(RED)
-startmenu_images["howto_mouse_over"] = pygame.image.load(path.join(img_dir, "startmenu_anleitung_button_mouseover_rgb_red.png")).convert()
+startmenu_images["howto_mouse_over"] = pygame.image.load(path.join(img_dir, "startmenu_howto_button_mouseover_rgb_red.png")).convert()
 startmenu_images["howto_mouse_over"].set_colorkey(RED)
 
 # load scores button (of startmenu)
@@ -243,6 +257,10 @@ startmenu_soundcontroller = {}
 startmenu_soundcontroller["start"] = True
 startmenu_soundcontroller["howto"] = True
 startmenu_soundcontroller["scores"] = True
+startmenu_soundcontroller["back"] = True
+startmenu_soundcontroller["menu"] = True
+startmenu_soundcontroller["again"] = True
+
 
 startmenu_sounds = {}
 startmenu_sounds["good_luck"] = pygame.mixer.Sound(path.join(snd_dir, "good_luck.ogg"))
@@ -774,6 +792,12 @@ def draw_shield_bar(surface, x, y, shield):
 def start_menu():
     pygame.mouse.set_visible(1)
     waiting = True
+
+    # configurate buttonrects
+    start_button = pygame.Rect(80, 550, 300, 100)
+    tutorial_button = pygame.Rect(430, 550, 300, 100)
+    highscore_button = pygame.Rect(780, 550, 300, 100)
+
     while waiting:
         clock.tick(FPS)
 
@@ -787,11 +811,6 @@ def start_menu():
 
         draw_text(screen, "Shmup!", 260, BLACK, (WIDTH / 2), 220)
         draw_text(screen, "Shmup!", 256, WHITE, (WIDTH / 2), 220)
-
-        # configurate buttons and their functions
-        start_button = pygame.Rect(80, 550, 300, 100)
-        tutorial_button = pygame.Rect(430, 550, 300, 100)
-        highscore_button = pygame.Rect(780, 550, 300, 100)
 
         # save mouse x, y and input
         mx, my = pygame.mouse.get_pos()
@@ -808,8 +827,6 @@ def start_menu():
 
                 # change soundcontroller
                 startmenu_soundcontroller["start"] = False
-                startmenu_soundcontroller["howto"] = True
-                startmenu_soundcontroller["scores"] = True
 
             if mouse_pressed[0]:
                 startmenu_sounds["good_luck"].play()
@@ -818,6 +835,7 @@ def start_menu():
 
         else:
             screen.blit(startmenu_images["start_idle"], start_button)
+            startmenu_soundcontroller["start"] = True
 
 
         # tutorial button check
@@ -829,20 +847,18 @@ def start_menu():
                 startmenu_sounds["mouseover"].play()
 
                 # change soundcontroller
-                startmenu_soundcontroller["start"] = True
                 startmenu_soundcontroller["howto"] = False
-                startmenu_soundcontroller["scores"] = True
 
             # check if mouse touches button and clicks
             if mouse_pressed[0]:
-                print("I got clicked")
                 howto_menu()
 
 
         else:
             screen.blit(startmenu_images["howto_idle"], tutorial_button)
+            startmenu_soundcontroller["howto"] = True
 
-
+        # score button check
         if highscore_button.collidepoint(mx, my):
             screen.blit(startmenu_images["scores_mouse_over"], highscore_button)
 
@@ -851,12 +867,11 @@ def start_menu():
                 startmenu_sounds["mouseover"].play()
 
                 # change soundcontroller
-                startmenu_soundcontroller["start"] = True
-                startmenu_soundcontroller["howto"] = True
                 startmenu_soundcontroller["scores"] = False
 
         else:
             screen.blit(startmenu_images["scores_idle"], highscore_button)
+            startmenu_soundcontroller["scores"] = True
 
 
         for event in pygame.event.get():
@@ -871,7 +886,7 @@ def howto_menu():
     pygame.mouse.set_visible(1)
     running = True
 
-    close_button = pygame.Rect((100 + howto_images["movement_rect"].width) - 72, 108, 64, 64)
+    back_button = pygame.Rect((WIDTH / 2) - 150, 675, 300, 100)
 
     while running:
         clock.tick(FPS)
@@ -881,15 +896,21 @@ def howto_menu():
         # draw background
         screen.blit(background_img, background_img_rect)
         # draw manuals
-        screen.blit(howto_images["movement"], (100, 100))
+        screen.blit(howto_images["movement"], (100, 50))
 
-        if close_button.collidepoint(mx, my):
-            screen.blit(startmenu_images["close_mouseover"], close_button)
+        # print the back button depending on the mouseover state
+        if back_button.collidepoint(mx, my):
+            if startmenu_soundcontroller["back"]:
+                startmenu_sounds["mouseover"].play()
+                startmenu_soundcontroller["back"] = False
+            screen.blit(startmenu_images["back_mouseover"], back_button)
 
+            # acceppt input if left mousebutton got pressed
             if mouse_pressed[0]:
                 running = False
         else:
-            screen.blit(startmenu_images["close_idle"], close_button)
+            screen.blit(startmenu_images["back_idle"], back_button)
+            startmenu_soundcontroller["back"] = True
 
         # get user input
         for event in pygame.event.get():
@@ -911,28 +932,57 @@ def display_game_over():
     jukebox("stop")
     jukebox("game_over")
 
-    waiting = True
-    while waiting:
+    again_button = pygame.Rect((WIDTH / 2) - 350, 600, 300, 100)
+    menu_button = pygame.Rect((WIDTH / 2) + 50, 600, 300, 100)
+
+    running = True
+    while running:
         clock.tick(FPS)
+
+        mx, my = pygame.mouse.get_pos()
+        mouse_pressed = pygame.mouse.get_pressed()
 
         # draw the menu
         screen.blit(background_img, background_img_rect)
         draw_text(screen, "Your score:", 128, WHITE, (WIDTH / 2), 10)
         draw_text(screen, str(player.score), 128, WHITE, (WIDTH / 2), 200)
         draw_text(screen, "You lose", 256, RED, (WIDTH / 2), 350)
-        draw_text(screen, "Press F button to restart", 64, WHITE, (WIDTH / 2), HEIGHT / 1.2)
+
+        # draw again button and check its state
+        if again_button.collidepoint(mx, my):
+            if startmenu_soundcontroller["again"]:
+                startmenu_sounds["mouseover"].play()
+                startmenu_soundcontroller["again"] = False
+
+            screen.blit(startmenu_images["again_mouseover"], again_button)
+
+            # acceppt input if left mousebutton got pressed
+            if mouse_pressed[0]:
+                jukebox("stop")
+                return False
+        else:
+            screen.blit(startmenu_images["again_idle"], again_button)
+            startmenu_soundcontroller["again"] = True
+
+        # draw menu button and check its state
+        if menu_button.collidepoint(mx, my):
+            if startmenu_soundcontroller["menu"]:
+                startmenu_sounds["mouseover"].play()
+                startmenu_soundcontroller["menu"] = False
+
+            screen.blit(startmenu_images["menu_mouseover"], menu_button)
+
+            # acceppt input if left mousebutton got pressed
+            if mouse_pressed[0]:
+                return True
+        else:
+            screen.blit(startmenu_images["menu_idle"], menu_button)
+            startmenu_soundcontroller["menu"] = True
 
         # check for closing the game
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 end_game()
-
-            # check for player input to continue
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_f:
-                    # reset the game values if game gets restarted
-                    jukebox("stop")
-                    waiting = False
 
         pygame.display.flip()
 
@@ -1116,7 +1166,16 @@ def jukebox(songtype):
     if songtype == "stop":
         pygame.mixer.music.stop()
 
+    if songtype == "intro":
+        # load intro theme
+        jukebox = pygame.mixer.music.load(path.join(snd_dir, "intro_music.mp3"))
+        # set loudness of the track
+        pygame.mixer.music.set_volume(0.5)
+        # set infinite loop
+        pygame.mixer.music.play()
+
     if songtype == "menu":
+        # load menu theme
         jukebox = pygame.mixer.music.load(path.join(snd_dir, "startmenu_music.mp3"))
         # set loudness of the track
         pygame.mixer.music.set_volume(0.5)
@@ -1124,7 +1183,7 @@ def jukebox(songtype):
         pygame.mixer.music.play(loops=-1)
 
     if songtype == "game":
-        # load game theme in function jukebox
+        # load game theme
         jukebox = pygame.mixer.music.load(path.join(snd_dir, "corneria_theme_music.mp3"))
         # set loudness of the track
         pygame.mixer.music.set_volume(0.1)
