@@ -932,8 +932,8 @@ def display_game_over():
     jukebox("stop")
     jukebox("game_over")
 
-    again_button = pygame.Rect((WIDTH / 2) - 350, 600, 300, 100)
-    menu_button = pygame.Rect((WIDTH / 2) + 50, 600, 300, 100)
+    again_button = pygame.Rect((WIDTH / 2) - 350, 650, 300, 100)
+    menu_button = pygame.Rect((WIDTH / 2) + 50, 650, 300, 100)
 
     running = True
     while running:
