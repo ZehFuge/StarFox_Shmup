@@ -298,13 +298,10 @@ class Player(pygame.sprite.Sprite):
         # create a score counter for the player and a multiplier for more visual fun
         self.score = 0
         self.score_multiplier = 1
-        # the hurt_mode allows to take damage. It is used for delay
-        # otherwise player could lose all life by impact of multiple spritecollides at once
-        self.hurt_mode = True
-        self.hurt_delay = 1000
-        self.last_update = pygame.time.get_ticks()
-        # hides the sprite of the player if player loses a life
-        self.hide = False
+
+        # prevents player of multiple damage at once
+
+
         # power level defines the strength of the laser
         self.power_level = 1
 
@@ -313,14 +310,6 @@ class Player(pygame.sprite.Sprite):
     def update(self):
         # save the input in a variable for better movement controls
         keystate = pygame.key.get_pressed()
-
-        # check if hurt_mode should be deactivated
-        now = pygame.time.get_ticks()
-        if not self.hurt_mode:
-            if now - self.last_update > int(self.hurt_delay):
-                self.hurt_mode = True
-                self.hide = False
-                self.last_update = now
 
         # checker for user input for movement
         # also check if player trys to leave the screen
@@ -409,32 +398,27 @@ class Player(pygame.sprite.Sprite):
     # this function activates to avoid taking multiple damage at once
     # through multiple sprite collisions
     def hurt(self):
-        if self.hurt_mode:
-            if (self.shield - 20) > 0:
-                # player takes damage
-                self.shield -= 20
-                self.hurt_mode = False
+        if (self.shield - 20) > 0:
+            # player takes damage
+            self.shield -= 20
 
-                # reset multiplier bonus
-                self.score_multiplier = 1
+            # reset multiplier bonus
+            self.score_multiplier = 1
 
 
-            else:
-                # create explosion image and play its sound
-                explosion = Explosion(self.rect.center, "player")
-                all_sprites.add(explosion)
-                explosion_sound.play()
+        else:
+            # create explosion image and play its sound
+            explosion = Explosion(self.rect.center, "player")
+            all_sprites.add(explosion)
+            explosion_sound.play()
 
-                self.last_update = pygame.time.get_ticks()
-                self.lives -= 1
-                # reset multiplier bonus
-                self.score_multiplier = 1
-                # reset the power level of the weapon
-                self.power_level = 1
-                self.shield = 100
-                self.hide = True
-                # set hurt_mode to false, to avoid damage for a short time
-                self.hurt_mode = False
+            self.last_update = pygame.time.get_ticks()
+            self.lives -= 1
+            # reset multiplier bonus
+            self.score_multiplier = 1
+            # reset the power level of the weapon
+            self.power_level = 1
+            self.shield = 100
 
 
 # class to kill the sprites on screen
@@ -923,6 +907,7 @@ def howto_menu():
 
 # draw the game over screen at the end of the game
 def display_game_over():
+    pygame.mouse.set_visible(1)
     jukebox("stop")
     jukebox("game_over")
 
