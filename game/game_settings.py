@@ -190,6 +190,12 @@ startmenu_images["scores_idle"].set_colorkey(RED)
 startmenu_images["scores_mouse_over"] = pygame.image.load(path.join(img_dir, "startmenu_scores_button_mouseover_rgb_red.png")).convert()
 startmenu_images["scores_mouse_over"].set_colorkey(RED)
 
+# load howto images
+# subsection of startmenu
+howto_images = {}
+howto_images["movement"] = pygame.image.load(path.join(img_dir, "anleitung_movement_1000x600p.png")).convert()
+howto_images["movement_rect"] = howto_images["movement"].get_rect()
+
 
 # sounds loading block
 # load shooting sounds
@@ -220,9 +226,19 @@ explosion_sound = pygame.mixer.Sound(path.join(snd_dir, "explosion_sfx.ogg"))
 explosion_sound.set_volume(0.1)
 
 
-# load good luck sound (plays after game gets started)
-good_luck_sound = pygame.mixer.Sound(path.join(snd_dir, "good_luck.ogg"))
-good_luck_sound.set_volume(0.8)
+# load good luck sound (plays after game gets started) and its control variable
+startmenu_soundcontroller = {}
+startmenu_soundcontroller["start"] = True
+startmenu_soundcontroller["howto"] = True
+startmenu_soundcontroller["scores"] = True
+
+startmenu_sounds = {}
+startmenu_sounds["good_luck"] = pygame.mixer.Sound(path.join(snd_dir, "good_luck.ogg"))
+startmenu_sounds["good_luck"].set_volume(0.8)
+
+startmenu_sounds["mouseover"] = pygame.mixer.Sound(path.join(snd_dir, "menu_mouseover_sfx.ogg"))
+startmenu_sounds["mouseover"].set_volume(0.8)
+
 
 
 # declare sprite groups
@@ -593,6 +609,8 @@ class Enemy(pygame.sprite.Sprite):
         if now - self.last_shot > self.shooting_delay:
             self.last_shot = now
             self.shoot()
+            # set new shooting_delay for more dynamicness
+            self.shooting_delay = randrange(500, 1500)
 
         if self.rect.top > HEIGHT \
                 or self.rect.left < (0 - self.rect[2]) \
@@ -741,9 +759,9 @@ def draw_shield_bar(surface, x, y, shield):
     screen.blit(shield_bar_image, (977, 0))
 
 
-
 # draw the menu screen at game begin
-def startmenu():
+def start_menu():
+    pygame.mouse.set_visible(1)
     waiting = True
     while waiting:
         # draw background and logo
@@ -765,31 +783,93 @@ def startmenu():
         clock.tick(FPS)
 
         # draw buttons and check for mouse collide
+        # start button check
         if start_button.collidepoint(mx, my):
             screen.blit(startmenu_images["start_mouse_over"], start_button)
+
+            # check if mouseover sound got played once
+            if startmenu_soundcontroller["start"]:
+                startmenu_sounds["mouseover"].play()
+
+                # change soundcontroller
+                startmenu_soundcontroller["start"] = False
+                startmenu_soundcontroller["howto"] = True
+                startmenu_soundcontroller["scores"] = True
+
+            if mouse_pressed[0]:
+                startmenu_sounds["good_luck"].play()
+                waiting = False
+
         else:
             screen.blit(startmenu_images["start_idle"], start_button)
 
+
+        # tutorial button check
         if tutorial_button.collidepoint(mx, my):
             screen.blit(startmenu_images["howto_mouse_over"], tutorial_button)
+
+            # check if mouseover sound got played once
+            if startmenu_soundcontroller["howto"]:
+                startmenu_sounds["mouseover"].play()
+
+                # change soundcontroller
+                startmenu_soundcontroller["start"] = True
+                startmenu_soundcontroller["howto"] = False
+                startmenu_soundcontroller["scores"] = True
+
+            # check if mouse touches button and clicks
+            if mouse_pressed[0]:
+                print("I got clicked")
+                howto_menu()
+
+
         else:
             screen.blit(startmenu_images["howto_idle"], tutorial_button)
 
+
         if highscore_button.collidepoint(mx, my):
             screen.blit(startmenu_images["scores_mouse_over"], highscore_button)
+
+            # check if mouseover sound got played once
+            if startmenu_soundcontroller["scores"]:
+                startmenu_sounds["mouseover"].play()
+
+                # change soundcontroller
+                startmenu_soundcontroller["start"] = True
+                startmenu_soundcontroller["howto"] = True
+                startmenu_soundcontroller["scores"] = False
+
         else:
             screen.blit(startmenu_images["scores_idle"], highscore_button)
 
 
-        # check if mouse touches button
-        if start_button.collidepoint((mx, my)) \
-                and mouse_pressed[0]:
-            good_luck_sound.play()
-            waiting = False
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 end_game()
+
+        pygame.display.flip()
+
+
+# submenu of startmenu
+def howto_menu():
+    pygame.mouse.set_visible(1)
+    running = True
+    while running:
+        # draw background
+        screen.blit(background_img, background_img_rect)
+        # draw manuals
+        screen.blit(howto_images["movement"], (100, 100))
+
+        # get user input
+        for event in pygame.event.get():
+            # quit game if "x" got clicked
+            if event.type == pygame.QUIT:
+                end_game()
+
+            # go back to start_menu()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
 
         pygame.display.flip()
 
@@ -811,10 +891,8 @@ def display_game_over():
                 end_game()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_f:
-                    player.lives = 3
-                    player.score_multiplier = 1
-                    player.shield = 100
-                    player.score = 0
+                    # reset the game values if game gets restarted
+                    reset_game()
                     waiting = False
 
 
@@ -985,6 +1063,7 @@ def collision_check():
     return respawn
 
 
+# plays music depending on the keyword argument
 def jukebox(songtype):
     if songtype == "stop":
         pygame.mixer.music.stop()
@@ -1003,3 +1082,11 @@ def jukebox(songtype):
         pygame.mixer.music.set_volume(0.1)
         # set infinite loop
         pygame.mixer.music.play(loops=-1)
+
+
+# resetzs the game values if needed
+def reset_game():
+    player.lives = 3
+    player.score_multiplier = 1
+    player.shield = 100
+    player.score = 0
