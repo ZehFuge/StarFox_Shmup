@@ -175,16 +175,28 @@ for i in range(9):
 
 # load startmenu images
 startmenu_images = {}
+# load close button
+startmenu_images["close_idle"] = pygame.image.load(path.join(img_dir, "close_button_64x64p.png")).convert()
+startmenu_images["close_mouseover"] = pygame.image.load(path.join(img_dir, "close_button_mouseover_64x64p.png")).convert()
+
+# load red fox symbol
+startmenu_images["redfox_logo"] = pygame.image.load(path.join(img_dir, "teamlogo_320x320p_rgb_black.png")).convert()
+startmenu_images["redfox_logo"] = pygame.transform.scale(startmenu_images["redfox_logo"], (800, 800))
+startmenu_images["redfox_logo"].set_colorkey(BLACK)
+
+# load start button (of startmenu)
 startmenu_images["start_idle"] = pygame.image.load(path.join(img_dir, "startmenu_start_button_rgb_red.png")).convert()
 startmenu_images["start_idle"].set_colorkey(RED)
 startmenu_images["start_mouse_over"] = pygame.image.load(path.join(img_dir, "startmenu_start_button_mouseover_rgb_red.png")).convert()
 startmenu_images["start_mouse_over"].set_colorkey(RED)
 
+# load tutorial button (of startmenu)
 startmenu_images["howto_idle"] = pygame.image.load(path.join(img_dir, "startmenu_anleitung_button_rgb_red.png")).convert()
 startmenu_images["howto_idle"].set_colorkey(RED)
 startmenu_images["howto_mouse_over"] = pygame.image.load(path.join(img_dir, "startmenu_anleitung_button_mouseover_rgb_red.png")).convert()
 startmenu_images["howto_mouse_over"].set_colorkey(RED)
 
+# load scores button (of startmenu)
 startmenu_images["scores_idle"] = pygame.image.load(path.join(img_dir, "startmenu_scores_button_rgb_red.png")).convert()
 startmenu_images["scores_idle"].set_colorkey(RED)
 startmenu_images["scores_mouse_over"] = pygame.image.load(path.join(img_dir, "startmenu_scores_button_mouseover_rgb_red.png")).convert()
@@ -289,7 +301,7 @@ class Player(pygame.sprite.Sprite):
         # the hurt_mode allows to take damage. It is used for delay
         # otherwise player could lose all life by impact of multiple spritecollides at once
         self.hurt_mode = True
-        self.hurt_delay = 520
+        self.hurt_delay = 1000
         self.last_update = pygame.time.get_ticks()
         # hides the sprite of the player if player loses a life
         self.hide = False
@@ -301,6 +313,14 @@ class Player(pygame.sprite.Sprite):
     def update(self):
         # save the input in a variable for better movement controls
         keystate = pygame.key.get_pressed()
+
+        # check if hurt_mode should be deactivated
+        now = pygame.time.get_ticks()
+        if not self.hurt_mode:
+            if now - self.last_update > int(self.hurt_delay):
+                self.hurt_mode = True
+                self.hide = False
+                self.last_update = now
 
         # checker for user input for movement
         # also check if player trys to leave the screen
@@ -389,15 +409,23 @@ class Player(pygame.sprite.Sprite):
     # this function activates to avoid taking multiple damage at once
     # through multiple sprite collisions
     def hurt(self):
-        now = pygame.time.get_ticks()
         if self.hurt_mode:
-            self.last_update = now
-            if self.shield <= 0:
+            if (self.shield - 20) > 0:
+                # player takes damage
+                self.shield -= 20
+                self.hurt_mode = False
+
+                # reset multiplier bonus
+                self.score_multiplier = 1
+
+
+            else:
                 # create explosion image and play its sound
                 explosion = Explosion(self.rect.center, "player")
                 all_sprites.add(explosion)
                 explosion_sound.play()
 
+                self.last_update = pygame.time.get_ticks()
                 self.lives -= 1
                 # reset multiplier bonus
                 self.score_multiplier = 1
@@ -407,38 +435,37 @@ class Player(pygame.sprite.Sprite):
                 self.hide = True
                 # set hurt_mode to false, to avoid damage for a short time
                 self.hurt_mode = False
-                if self.lives == 0:
-                        display_game_over()
-            else:
-                # player takes damage
-                self.shield -= 20
 
-                # reset multiplier bonus
-                self.score_multiplier = 1
 
-                if self.shield <= 0:
-                    # create explosion image and play its sound
-                    explosion = Explosion(self.rect.center, "player")
-                    all_sprites.add(explosion)
-                    explosion_sound.play()
+# class to kill the sprites on screen
+class sprite_killer(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = background_img
+        self.rect = self.image.get_rect()
 
-                    self.lives -= 1
-                    # reset multiplier bonus
-                    self.score_multiplier = 1
-                    # reset the power level of the weapon
-                    self.power_level = 1
-                    self.shield = 100
-                    self.hide = True
-                    # set hurt_mode to false, to avoid damage for a short time
-                    self.hurt_mode = False
-                    if self.lives == 0:
-                        display_game_over()
+    def update(self):
+        self.rect.x = 0
+        self.rect.y = 0
 
-        if not self.hurt_mode:
-            if now - self.last_update > int(self.hurt_delay):
-                self.hurt_mode = True
-                self.hide = False
-                now = pygame.time.get_ticks()
+    def kill_all(self):
+        # kill all sprites without rasing the respawn variable
+        # except of the player
+        hits = pygame.sprite.spritecollide(self, meteors, True)
+        for hit in hits:
+            hit.kill()
+
+        hits = pygame.sprite.spritecollide(self, enemys, True)
+        for hit in hits:
+            hit.kill()
+
+        hits = pygame.sprite.spritecollide(self, enemy_bullets, True)
+        for hit in hits:
+            hit.kill()
+
+
+# create sprite_killer for further use
+killer = sprite_killer()
 
 
 # create player object and add it to the right sprite groups
@@ -764,13 +791,18 @@ def start_menu():
     pygame.mouse.set_visible(1)
     waiting = True
     while waiting:
+        clock.tick(FPS)
+
         # draw background and logo
         screen.blit(background_img, background_img_rect)
-        draw_text(screen, "Star Fox", 260, BLACK, (WIDTH / 2), 5)
-        draw_text(screen, "Star Fox", 256, WHITE, (WIDTH / 2), 5)
 
-        draw_text(screen, "Shmup!", 260, BLACK, (WIDTH / 2), 200)
-        draw_text(screen, "Shmup!", 256, WHITE, (WIDTH / 2), 200)
+        screen.blit(startmenu_images["redfox_logo"], ((WIDTH / 2) - 400, -100))
+
+        draw_text(screen, "Star Fox", 260, BLACK, (WIDTH / 2), 25)
+        draw_text(screen, "Star Fox", 256, WHITE, (WIDTH / 2), 25)
+
+        draw_text(screen, "Shmup!", 260, BLACK, (WIDTH / 2), 220)
+        draw_text(screen, "Shmup!", 256, WHITE, (WIDTH / 2), 220)
 
         # configurate buttons and their functions
         start_button = pygame.Rect(80, 550, 300, 100)
@@ -780,7 +812,6 @@ def start_menu():
         # save mouse x, y and input
         mx, my = pygame.mouse.get_pos()
         mouse_pressed = pygame.mouse.get_pressed()
-        clock.tick(FPS)
 
         # draw buttons and check for mouse collide
         # start button check
@@ -798,6 +829,7 @@ def start_menu():
 
             if mouse_pressed[0]:
                 startmenu_sounds["good_luck"].play()
+                pygame.mouse.set_visible(0)
                 waiting = False
 
         else:
@@ -854,11 +886,26 @@ def start_menu():
 def howto_menu():
     pygame.mouse.set_visible(1)
     running = True
+
+    close_button = pygame.Rect((100 + howto_images["movement_rect"].width) - 72, 108, 64, 64)
+
     while running:
+        clock.tick(FPS)
+        mx, my = pygame.mouse.get_pos()
+        mouse_pressed = pygame.mouse.get_pressed()
+
         # draw background
         screen.blit(background_img, background_img_rect)
         # draw manuals
         screen.blit(howto_images["movement"], (100, 100))
+
+        if close_button.collidepoint(mx, my):
+            screen.blit(startmenu_images["close_mouseover"], close_button)
+
+            if mouse_pressed[0]:
+                running = False
+        else:
+            screen.blit(startmenu_images["close_idle"], close_button)
 
         # get user input
         for event in pygame.event.get():
@@ -876,24 +923,33 @@ def howto_menu():
 
 # draw the game over screen at the end of the game
 def display_game_over():
-    screen.blit(background_img, background_img_rect)
-    draw_text(screen, "Your score:", 128, WHITE, (WIDTH / 2), 10)
-    draw_text(screen, str(player.score), 128, WHITE, (WIDTH / 2), 200)
-    draw_text(screen, "You lose", 256, RED, (WIDTH / 2), 350)
-    draw_text(screen, "Press F button to restart", 64, WHITE, (WIDTH / 2), HEIGHT / 1.2)
+    jukebox("stop")
+    jukebox("game_over")
 
-    pygame.display.flip()
     waiting = True
     while waiting:
         clock.tick(FPS)
+
+        # draw the menu
+        screen.blit(background_img, background_img_rect)
+        draw_text(screen, "Your score:", 128, WHITE, (WIDTH / 2), 10)
+        draw_text(screen, str(player.score), 128, WHITE, (WIDTH / 2), 200)
+        draw_text(screen, "You lose", 256, RED, (WIDTH / 2), 350)
+        draw_text(screen, "Press F button to restart", 64, WHITE, (WIDTH / 2), HEIGHT / 1.2)
+
+        # check for closing the game
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 end_game()
+
+            # check for player input to continue
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_f:
                     # reset the game values if game gets restarted
-                    reset_game()
+                    jukebox("stop")
                     waiting = False
+
+        pygame.display.flip()
 
 
 # respawns enemys by given amount
@@ -1039,21 +1095,28 @@ def collision_check():
     for hit in hits:
         # enhence the quantity of players lasers
         if hit.type == "wings":
+            player.score += 250
             power_up_sound["wings"].play()
             player.power_level += 1
+
         # raise the multiplicator score of the player
         if hit.type == "double":
+            player.score += 500
             power_up_sound["double"].play()
             player.score_multiplier += 1
+
         # heal player for a little bit
         if hit.type == "silver":
+            player.score += 150
             power_up_sound["rings"].play()
             player.shield += 15
             # check if players life raised above 100 and correct it
             if player.shield > 100:
                 player.shield = 100
+
         # heal player for a big amount
         if hit.type == "gold":
+            player.score += 250
             power_up_sound["rings"].play()
             player.shield += 50
             # check if players life raised above 100 and correct it
@@ -1083,10 +1146,30 @@ def jukebox(songtype):
         # set infinite loop
         pygame.mixer.music.play(loops=-1)
 
+    if songtype == "game_over":
+        # load game over theme
+        jukebox = pygame.mixer.music.load(path.join(snd_dir, "deathmenu_music.mp3"))
+        # set loudness of the track
+        pygame.mixer.music.set_volume(0.5)
+        # set infinite loop
+        pygame.mixer.music.play(loops=-1)
+
 
 # resetzs the game values if needed
 def reset_game():
+    # kill all enemys from screen
+    killer.kill_all()
+
+    # redraw player
+    player.rect.centerx = WIDTH / 2
+    player.rect.bottom = background_img_rect.bottom - 5
+
+    # reset player stats
     player.lives = 3
     player.score_multiplier = 1
     player.shield = 100
     player.score = 0
+
+    # reset respawn variable
+    respawn = 0
+    return respawn
