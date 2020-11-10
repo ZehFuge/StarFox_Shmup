@@ -224,6 +224,11 @@ howto_images["movement_rect"] = howto_images["movement"].get_rect()
 
 
 # sounds loading block
+# load mid- and low life sounds
+player_sounds = {}
+player_sounds["mid"] = pygame.mixer.Sound(path.join(snd_dir, "player_mid_shield_sfx.ogg"))
+player_sounds["low"] = pygame.mixer.Sound(path.join(snd_dir, "player_low_shield_sfx.ogg"))
+
 # load shooting sounds
 laser_sound = {}
 laser_sound[0] = pygame.mixer.Sound(path.join(snd_dir, "single_laser_sfx.ogg"))
@@ -298,6 +303,11 @@ class Player(pygame.sprite.Sprite):
         self.rect.centerx = WIDTH / 2
         self.rect.bottom = background_img_rect.bottom - 5
 
+        # dictonary for time events
+        self.last_update = {}
+        self.last_update["shield_sound"] = pygame.time.get_ticks()
+        self.last_update["death_time"] = pygame.time.get_ticks()
+        self.last_update["recovered"] = pygame.time.get_ticks()
 
         # player information block
         self.move_speed = 0
@@ -318,7 +328,11 @@ class Player(pygame.sprite.Sprite):
         self.score_multiplier = 1
 
         # prevents player of multiple damage at once
-
+        # self.last_update["death_time"] declared in last_update block
+        # self.last_update["recovered"] declared in the last_update block
+        self.hurt_mode = True
+        self.hurt_delay = 2000
+        self.reset_position = True
 
         # power level defines the strength of the laser
         self.power_level = 1
@@ -328,6 +342,36 @@ class Player(pygame.sprite.Sprite):
     def update(self):
         # save the input in a variable for better movement controls
         keystate = pygame.key.get_pressed()
+
+        # play right sound with delay for the right shield amount
+        now = pygame.time.get_ticks()
+        if 30 < self.shield <= 50:
+            if (now - self.last_update["shield_sound"]) >= 2000:
+                self.last_update["shield_sound"] = now
+                player_sounds["mid"].play()
+
+        if 0 < self.shield <= 30:
+            if (now - self.last_update["shield_sound"]) >= 1000:
+                self.last_update["shield_sound"] = now
+                player_sounds["low"].play()
+
+        # hide the player if he died
+        if not self.hurt_mode:
+            if not self.reset_position:
+                self.rect.y = 1000
+
+                if (now - self.last_update["death_time"]) >= self.hurt_delay:
+                    # reset player position
+                    self.rect.bottom = background_img_rect.bottom - 5
+                    self.rect.x = WIDTH / 2
+
+                    # get recover time
+                    self.last_update["recovered"] = pygame.time.get_ticks()
+
+                    # reset check variables
+                    self.hurt_mode = True
+                    self.reset_position = True
+
 
         # checker for user input for movement
         # also check if player trys to leave the screen
@@ -361,7 +405,10 @@ class Player(pygame.sprite.Sprite):
             if (self.rect.bottom + self.move_speed) < HEIGHT:
                 self.rect.y += self.move_speed
 
-        if keystate[pygame.K_SPACE]:
+        # if the player is out of screen because of death
+        # player cant shoot
+        if keystate[pygame.K_SPACE] \
+                and self.rect.bottom <= HEIGHT:
             self.shoot()
 
         # reset player image if a or d got released
@@ -384,15 +431,15 @@ class Player(pygame.sprite.Sprite):
             if player.power_level == 1:
                 # give the class the needed information to create bullet object
                 # information are given by rect information of the sprite
-                bullet1 = Bullet(self.rect.centerx, self.rect.top)
+                bullet1 = Bullet(self.rect.centerx, self.rect.top, 0)
                 all_sprites.add(bullet1)
                 laser_sound[0].play()
                 bullets.add(bullet1)
 
             # double shot
             if player.power_level == 2:
-                bullet1 = Bullet(self.rect.centerx - (self.rect.width / 2), self.rect.top)
-                bullet2 = Bullet(self.rect.centerx + (self.rect.width / 2), self.rect.top)
+                bullet1 = Bullet(self.rect.centerx - (self.rect.width / 2), self.rect.top, 0)
+                bullet2 = Bullet(self.rect.centerx + (self.rect.width / 2), self.rect.top, 0)
                 all_sprites.add(bullet1)
                 all_sprites.add(bullet2)
                 bullets.add(bullet1)
@@ -401,9 +448,9 @@ class Player(pygame.sprite.Sprite):
 
             # tripple shot
             if player.power_level >= 3:
-                bullet0 = Bullet(self.rect.centerx, self.rect.top - 50)
-                bullet1 = Bullet(self.rect.centerx - (self.rect.width / 2), self.rect.top)
-                bullet2 = Bullet(self.rect.centerx + (self.rect.width / 2), self.rect.top)
+                bullet0 = Bullet(self.rect.centerx, self.rect.top - 50, 0)
+                bullet1 = Bullet(self.rect.centerx - (self.rect.width / 2), self.rect.top, 5)
+                bullet2 = Bullet(self.rect.centerx + (self.rect.width / 2), self.rect.top, -5)
                 all_sprites.add(bullet0)
                 all_sprites.add(bullet1)
                 all_sprites.add(bullet2)
@@ -430,7 +477,11 @@ class Player(pygame.sprite.Sprite):
             all_sprites.add(explosion)
             explosion_sound.play()
 
-            self.last_update = pygame.time.get_ticks()
+            killer.kill_all()
+
+            self.hurt_mode = False
+            self.reset_position = False
+            self.last_update["death_time"] = pygame.time.get_ticks()
             self.lives -= 1
             # reset multiplier bonus
             self.score_multiplier = 1
@@ -443,12 +494,13 @@ class Player(pygame.sprite.Sprite):
 class sprite_killer(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.image = background_img
-        self.rect = self.image.get_rect()
+        # self.image = background_img
+        # expand the rect of the sprite bigger than the screen size
+        # sprites out of screen (spawn place) will be killed too
+        self.rect = pygame.Rect(-200, -200, (WIDTH + 200), HEIGHT + 200)
 
     def update(self):
-        self.rect.x = 0
-        self.rect.y = 0
+        self.rect.x += 0
 
     def kill_all(self):
         # kill all sprites without rasing the respawn variable
@@ -462,6 +514,10 @@ class sprite_killer(pygame.sprite.Sprite):
             hit.kill()
 
         hits = pygame.sprite.spritecollide(self, enemy_bullets, True)
+        for hit in hits:
+            hit.kill()
+
+        hits = pygame.sprite.spritecollide(self, power_ups, True)
         for hit in hits:
             hit.kill()
 
@@ -479,14 +535,14 @@ players.add(player)
 # class for spawning bullets and their behavior
 class Bullet(pygame.sprite.Sprite):
     # bullets need the coordinates of the player sprite as spawn position
-    def __init__(self, x, y):
+    def __init__(self, x, y, angle):
         pygame.sprite.Sprite.__init__(self)
         # set image to sprite and get its rectangle information
         if player.power_level == 1:
-            self.image = green_laser
+            self.image_copy = green_laser
         if player.power_level >= 2:
-            self.image = blue_laser
-        self.rect = self.image.get_rect()
+            self.image_copy  = blue_laser
+        self.rect = self.image_copy.get_rect()
 
         # set spawn position by player coordiantes
         self.rect.bottom = y
@@ -494,10 +550,24 @@ class Bullet(pygame.sprite.Sprite):
         # the speed is subtrakted because the bullet is flying up
         self.move_speed = -20
 
+        # set rotation depend on angle
+        self.image = self.image_copy.copy()
+        self.angle = angle
+        if self.angle < 0 \
+            or self.angle > 0:
+            self.image = pygame.transform.rotate(self.image, self.angle)
+
     # set the update information for behavior
     def update(self):
         # set movement decided by move_speed
         self.rect.y += self.move_speed
+
+        # also move diagonal if angle isnt 0
+        if self.angle > 0:
+            self.rect.x -= 3
+
+        if self.angle < 0:
+            self.rect.x += 3
 
         # if the bottom part of the sprites leaves the upper window range (x = 0), destroy it
         if self.rect.bottom < 0:
@@ -621,9 +691,15 @@ class Enemy(pygame.sprite.Sprite):
         self.last_shot = pygame.time.get_ticks()
         self.shooting_delay = randrange(1000, 3000)
 
+        # time event for movement
+        self.direction = choice([0, 1, 2])
+        self.last_update = {}
+        self.last_update["direction"] = pygame.time.get_ticks()
+
         # information needed for movement and hitbox
         self.radius = self.rect.width / 2.5
         self.speed_y = randrange(1, 5)
+        self.speed_x = 3
 
         # set start randomly generated start positons
         self.rect.x = randrange(0, WIDTH - self.rect.width)
@@ -631,9 +707,6 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.y = -100
 
     def update(self):
-        # move enemys y-axis by speed_y value
-        self.rect.y += self.speed_y
-
         now = pygame.time.get_ticks()
         if now - self.last_shot > self.shooting_delay:
             self.last_shot = now
@@ -641,6 +714,32 @@ class Enemy(pygame.sprite.Sprite):
             # set new shooting_delay for more dynamicness
             self.shooting_delay = randrange(500, 1500)
 
+        # every 3 seconds, choose a random direction
+        if (now - self.last_update["direction"]) >= 500:
+            self.direction = choice([0, 1, 2])
+            self.last_update["direction"] = now
+
+        # makes target always move down towards the player
+        self.rect.y += self.speed_y
+
+        # move to generated direction
+        if self.direction == 0:
+            # keep flying forward
+            pass
+
+        # move right
+        elif self.direction == 1 \
+                and (self.rect.right + self.speed_x) < WIDTH:
+            self.rect.x += self.speed_x
+
+
+        # move left
+        elif self.direction == 2 \
+                and (self.rect.left - self.speed_x) > 0:
+            self.rect.x -= self.speed_x
+
+
+        # reset sprite position if out of screen
         if self.rect.top > HEIGHT \
                 or self.rect.left < (0 - self.rect[2]) \
                 or self.rect.right > (WIDTH + self.rect[2]):
@@ -756,9 +855,9 @@ def draw_multi():
 # draw the hp bar of the player
 def draw_shield_bar(surface, x, y, shield):
     # sets color for health bar depend on health level
-    if shield > 60:
+    if shield > 50:
         bar_color = GREEN
-    if 30 < shield <= 60:
+    if 30 < shield <= 50:
         bar_color = YELLOW
     if  shield <= 30:
         bar_color = RED
@@ -958,6 +1057,7 @@ def display_game_over():
 
             # acceppt input if left mousebutton got pressed
             if mouse_pressed[0]:
+                pygame.mouse.set_visible(0)
                 jukebox("stop")
                 return False
         else:
