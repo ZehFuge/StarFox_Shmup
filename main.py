@@ -28,6 +28,7 @@ respawn = 0
 
 # needed to spawn creatures at the beginning of the game
 start_spawn = False
+killed_spawn = False
 start_music = False
 
 
@@ -36,6 +37,13 @@ while running:
     # keep the loop running at the right speed
     GS.clock.tick(GS.FPS)
 
+    if GS.player.hurt_mode \
+        and not killed_spawn:
+        respawn = GS.killer.kill_and_count()
+        killed_spawn = True
+
+    if GS.player.hurt_mode:
+        killed_spawn = False
 
     # check if player died
     if GS.player.lives == 0:
@@ -74,8 +82,6 @@ while running:
         respawn = 4
         start_spawn = False
 
-    if GS.player_sounds["low"]:
-        print("Im fuckin' low bruh")
 
     # check for closing game
     for event in pygame.event.get():
