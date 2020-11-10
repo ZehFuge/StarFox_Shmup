@@ -20,7 +20,7 @@ HEIGHT = 800
 # HALF_WIDHT is needed for multiple laser display
 HALF_WIDHT = WIDTH / 2
 FPS = 60
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
 # fonts needs to be pre declared, to blit text on surface through function
 font_name = pygame.font.match_font("Arial")
@@ -181,6 +181,18 @@ startmenu_images["back_idle"].set_colorkey(RED)
 startmenu_images["back_mouseover"] = pygame.image.load(path.join(img_dir, "startmenu_back_button_mouseover_rgb_red.png")).convert()
 startmenu_images["back_mouseover"].set_colorkey(RED)
 
+# load exit button
+startmenu_images["exit_idle"] = pygame.image.load(path.join(img_dir, "startmenu_exit_button_rgb_red.png")).convert()
+startmenu_images["exit_idle"].set_colorkey(RED)
+startmenu_images["exit_mouseover"] = pygame.image.load(path.join(img_dir, "startmenu_exit_button_mouseover_rgb_red.png")).convert()
+startmenu_images["exit_mouseover"].set_colorkey(RED)
+
+# play exit button
+startmenu_images["play_idle"] = pygame.image.load(path.join(img_dir, "startmenu_play_button_rgb_red.png")).convert()
+startmenu_images["play_idle"].set_colorkey(RED)
+startmenu_images["play_mouseover"] = pygame.image.load(path.join(img_dir, "startmenu_play_button_mouseover_rgb_red.png")).convert()
+startmenu_images["play_mouseover"].set_colorkey(RED)
+
 # load menu button
 startmenu_images["menu_idle"] = pygame.image.load(path.join(img_dir, "startmenu_menu_button_rgb_red.png")).convert()
 startmenu_images["menu_idle"].set_colorkey(RED)
@@ -259,12 +271,6 @@ explosion_sound.set_volume(0.1)
 
 # load good luck sound (plays after game gets started) and its control variable
 startmenu_soundcontroller = {}
-startmenu_soundcontroller["start"] = True
-startmenu_soundcontroller["howto"] = True
-startmenu_soundcontroller["scores"] = True
-startmenu_soundcontroller["back"] = True
-startmenu_soundcontroller["menu"] = True
-startmenu_soundcontroller["again"] = True
 
 
 startmenu_sounds = {}
@@ -497,7 +503,7 @@ class sprite_killer(pygame.sprite.Sprite):
         # self.image = background_img
         # expand the rect of the sprite bigger than the screen size
         # sprites out of screen (spawn place) will be killed too
-        self.rect = pygame.Rect(-200, -200, (WIDTH + 200), HEIGHT + 200)
+        self.rect = pygame.Rect(-500, -500, (WIDTH + 500), HEIGHT + 500)
 
     def update(self):
         self.rect.x += 0
@@ -543,6 +549,7 @@ class sprite_killer(pygame.sprite.Sprite):
         hits = pygame.sprite.spritecollide(self, power_ups, True)
         for hit in hits:
             hit.kill()
+
 
         return amount
 
@@ -921,6 +928,7 @@ def start_menu():
     start_button = pygame.Rect(80, 550, 300, 100)
     tutorial_button = pygame.Rect(430, 550, 300, 100)
     highscore_button = pygame.Rect(780, 550, 300, 100)
+    exit_button = pygame.Rect(780, 675, 300, 100)
 
     while waiting:
         clock.tick(FPS)
@@ -996,6 +1004,25 @@ def start_menu():
         else:
             screen.blit(startmenu_images["scores_idle"], highscore_button)
             startmenu_soundcontroller["scores"] = True
+
+        # exit button check
+        if exit_button.collidepoint(mx, my):
+            screen.blit(startmenu_images["exit_mouseover"], exit_button)
+
+            # check if mouseover sound got played once
+            if startmenu_soundcontroller["exit"]:
+                startmenu_sounds["mouseover"].play()
+
+                # change soundcontroller
+                startmenu_soundcontroller["exit"] = False
+
+            # check if mouse touches button and clicks
+            if mouse_pressed[0]:
+                end_game()
+
+        else:
+            screen.blit(startmenu_images["exit_idle"], exit_button)
+            startmenu_soundcontroller["exit"] = True
 
 
         for event in pygame.event.get():
@@ -1108,6 +1135,67 @@ def display_game_over():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 end_game()
+
+        pygame.display.flip()
+
+
+# draw the pause menu if the player presses ESC while playing
+def pause_menu():
+    running = True
+
+    # make mouse visible again
+    pygame.mouse.set_visible(1)
+
+    # button block
+    continue_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) - 65, 300, 100)
+    exit_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) + 65, 300, 100)
+
+    while running:
+        mx, my = pygame.mouse.get_pos()
+        mouse_pressed = pygame.mouse.get_pressed()
+
+        # draw the paused game
+        # draw_everything()
+
+        # draw the buttons
+        # continue button check
+        if continue_button.collidepoint(mx, my):
+            screen.blit(startmenu_images["play_mouseover"], continue_button)
+
+            # check if mouseover sound got played once
+            if startmenu_soundcontroller["play"]:
+                startmenu_sounds["mouseover"].play()
+
+                # change soundcontroller
+                startmenu_soundcontroller["play"] = False
+
+            # check if mouse touches button and clicks
+            if mouse_pressed[0]:
+                running = False
+
+        else:
+            screen.blit(startmenu_images["play_idle"], continue_button)
+            startmenu_soundcontroller["play"] = True
+
+        # exit button check
+        if exit_button.collidepoint(mx, my):
+            screen.blit(startmenu_images["exit_mouseover"], exit_button)
+
+            # check if mouseover sound got played once
+            if startmenu_soundcontroller["exit"]:
+                startmenu_sounds["mouseover"].play()
+
+                # change soundcontroller
+                startmenu_soundcontroller["exit"] = False
+
+            # check if mouse touches button and clicks
+            if mouse_pressed[0]:
+                end_game()
+
+        else:
+            screen.blit(startmenu_images["exit_idle"], exit_button)
+            startmenu_soundcontroller["exit"] = True
+
 
         pygame.display.flip()
 
