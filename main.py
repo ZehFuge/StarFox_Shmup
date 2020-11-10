@@ -71,10 +71,11 @@ while running:
     if not startmenu_screen \
         and start_spawn \
         and (now - last_update["game_start"]) > 3000:
-        print("start spawning ma bois")
         respawn = 4
         start_spawn = False
 
+    if GS.player_sounds["low"]:
+        print("Im fuckin' low bruh")
 
     # check for closing game
     for event in pygame.event.get():
