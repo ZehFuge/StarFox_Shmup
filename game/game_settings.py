@@ -477,12 +477,12 @@ class Player(pygame.sprite.Sprite):
             all_sprites.add(explosion)
             explosion_sound.play()
 
-            killer.kill_all()
 
             self.hurt_mode = False
             self.reset_position = False
             self.last_update["death_time"] = pygame.time.get_ticks()
             self.lives -= 1
+
             # reset multiplier bonus
             self.score_multiplier = 1
             # reset the power level of the weapon
@@ -520,6 +520,31 @@ class sprite_killer(pygame.sprite.Sprite):
         hits = pygame.sprite.spritecollide(self, power_ups, True)
         for hit in hits:
             hit.kill()
+
+    def kill_and_count(self):
+        amount = 0
+        # kill all sprites without rasing the respawn variable
+        # except of the player
+        # also count the amoung of killed villans
+        hits = pygame.sprite.spritecollide(self, meteors, True)
+        for hit in hits:
+            amount += 1
+            hit.kill()
+
+        hits = pygame.sprite.spritecollide(self, enemys, True)
+        for hit in hits:
+            amount += 1
+            hit.kill()
+
+        hits = pygame.sprite.spritecollide(self, enemy_bullets, True)
+        for hit in hits:
+            hit.kill()
+
+        hits = pygame.sprite.spritecollide(self, power_ups, True)
+        for hit in hits:
+            hit.kill()
+
+        return amount
 
 
 # create sprite_killer for further use
