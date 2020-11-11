@@ -147,4 +147,3 @@ while running:
 
     # after drawing, flip (CAF.GS).screen
     pygame.display.flip()
-    pygame.display.update()
