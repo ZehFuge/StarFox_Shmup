@@ -124,6 +124,7 @@ while running:
                 # if the player went back to main menu, clear the screen
                 if startmenu_screen:
                     GS.killer.kill_all()
+                    respawn = 0
 
 
 
