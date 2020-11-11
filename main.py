@@ -38,18 +38,20 @@ while running:
     GS.clock.tick(GS.FPS)
 
     # check if player died
-    if GS.player.lives == 0:
+    if GS.player.lives == 0 \
+        and GS.player.death:
         startmenu_screen = GS.display_game_over()
 
         # if player didnt closed the game
-        respawn = GS.reset_game()
+        respawn = GS.reset_game(True)
         last_update["game_start"] = pygame.time.get_ticks()
         start_music = True
         start_spawn = True
 
 
     # check if welcome screen should be displayed
-    if startmenu_screen:
+    if startmenu_screen \
+        and not GS.player.death:
         GS.jukebox("menu")
         GS.start_menu()
         last_update["game_start"] = pygame.time.get_ticks()
@@ -116,7 +118,13 @@ while running:
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                GS.pause_menu()
+                # open pause menu if player presses ESC
+                startmenu_screen = GS.pause_menu()
+
+                # if the player went back to main menu, clear the screen
+                if startmenu_screen:
+                    GS.killer.kill_all()
+
 
 
     # update / move sprites
