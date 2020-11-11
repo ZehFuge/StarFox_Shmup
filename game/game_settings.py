@@ -258,7 +258,7 @@ power_up_sound["rings"] = pygame.mixer.Sound(path.join(snd_dir, "power_up_ring.o
 power_up_sound["rings"].set_volume(0.2)
 
 power_up_sound["wings"] = pygame.mixer.Sound(path.join(snd_dir, "power_up_wings.ogg"))
-power_up_sound["wings"].set_volume(0.2)
+power_up_sound["wings"].set_volume(0.4)
 
 power_up_sound["double"] = pygame.mixer.Sound(path.join(snd_dir, "power_up_multi.ogg"))
 power_up_sound["double"].set_volume(0.7)
@@ -339,6 +339,7 @@ class Player(pygame.sprite.Sprite):
         self.hurt_mode = True
         self.hurt_delay = 2000
         self.reset_position = True
+        self.death = False
 
         # power level defines the strength of the laser
         self.power_level = 1
@@ -473,6 +474,9 @@ class Player(pygame.sprite.Sprite):
             # player takes damage
             self.shield -= 20
 
+            # correct death state
+            self.death = False
+
             # reset multiplier bonus
             self.score_multiplier = 1
 
@@ -483,7 +487,10 @@ class Player(pygame.sprite.Sprite):
             all_sprites.add(explosion)
             explosion_sound.play()
 
+            # correct death state
+            self.death = True
 
+            # activate the hurt mode and get time of death
             self.hurt_mode = False
             self.reset_position = False
             self.last_update["death_time"] = pygame.time.get_ticks()
@@ -550,6 +557,44 @@ class sprite_killer(pygame.sprite.Sprite):
         for hit in hits:
             hit.kill()
 
+    def kill_and_count(self):
+        amount = 0
+        # kill all sprites without rasing the respawn variable
+        # except of the player
+        # also count the amoung of killed villans
+        hits = pygame.sprite.spritecollide(self, meteors, True)
+        for hit in hits:
+            amount += 1
+            hit.kill()
+
+        hits = pygame.sprite.spritecollide(self, enemys, True)
+        for hit in hits:
+            amount += 1
+            hit.kill()
+
+        hits = pygame.sprite.spritecollide(self, enemy_bullets, True)
+        for hit in hits:
+            hit.kill()
+
+        hits = pygame.sprite.spritecollide(self, power_ups, True)
+        for hit in hits:
+            hit.kill()
+
+        return amount
+
+
+    def just_count(self):
+        amount = 0
+        # count the amount of villans on screen
+        # this method is needed to handle the amount of villans onscreen
+
+        hits = pygame.sprite.spritecollide(self, meteors, False)
+        for hit in hits:
+            amount += 1
+
+        hits = pygame.sprite.spritecollide(self, enemys, False)
+        for hit in hits:
+            amount += 1
 
         return amount
 
@@ -730,7 +775,7 @@ class Enemy(pygame.sprite.Sprite):
 
         # information needed for movement and hitbox
         self.radius = self.rect.width / 2.5
-        self.speed_y = randrange(1, 5)
+        self.speed_y = randrange(2, 5)
         self.speed_x = 3
 
         # set start randomly generated start positons
@@ -1147,10 +1192,12 @@ def pause_menu():
     pygame.mouse.set_visible(1)
 
     # button block
-    continue_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) - 65, 300, 100)
-    exit_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) + 65, 300, 100)
+    continue_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) - 125, 300, 100)
+    menu_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2), 300, 100)
+    exit_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) + 125, 300, 100)
 
     while running:
+        clock.tick(FPS)
         mx, my = pygame.mouse.get_pos()
         mouse_pressed = pygame.mouse.get_pressed()
 
@@ -1171,11 +1218,36 @@ def pause_menu():
 
             # check if mouse touches button and clicks
             if mouse_pressed[0]:
+                pygame.mouse.set_visible(0)
                 running = False
+                return False
 
         else:
             screen.blit(startmenu_images["play_idle"], continue_button)
             startmenu_soundcontroller["play"] = True
+
+        # menu button check
+        if menu_button.collidepoint(mx, my):
+            screen.blit(startmenu_images["menu_mouseover"], menu_button)
+
+            # check if mouseover sound got played once
+            if startmenu_soundcontroller["menu"]:
+                startmenu_sounds["mouseover"].play()
+
+                # change soundcontroller
+                startmenu_soundcontroller["menu"] = False
+
+            # check if mouse touches button and clicks
+            if mouse_pressed[0]:
+                # reset player variables and clear screen
+                reset_game(False)
+
+                player.death = False
+                return True
+
+        else:
+            screen.blit(startmenu_images["menu_idle"], menu_button)
+            startmenu_soundcontroller["menu"] = True
 
         # exit button check
         if exit_button.collidepoint(mx, my):
@@ -1196,6 +1268,11 @@ def pause_menu():
             screen.blit(startmenu_images["exit_idle"], exit_button)
             startmenu_soundcontroller["exit"] = True
 
+        # get user input
+        for event in pygame.event.get():
+            # quit game if "x" got clicked
+            if event.type == pygame.QUIT:
+                end_game()
 
         pygame.display.flip()
 
@@ -1203,17 +1280,22 @@ def pause_menu():
 # respawns enemys by given amount
 def generate_villans(respawn):
     amount = respawn
+    amount_onscreen = 0
     now = pygame.time.get_ticks()
 
     # if 20 seconds have passed, add more enemys
     if (now - last_update["more_villans"]) >= 20_000:
         last_update["more_villans"] = now
-        if amount < 20:
-            amount += 2
-        else:
-            amount = 10
+        amount += 2
+
+    # check if there are to many enemys on screen
+    # if true, block respawning
+    amount_onscreen = killer.just_count()
+    if amount_onscreen >= 20:
+        amount = 0
+
     # for ever enemy to spawn...
-    while amount != 0:
+    if amount != 0:
         # ...generate a random number between 0.0 and 1.0 and safe it
         selector = random()
 
@@ -1413,7 +1495,7 @@ def jukebox(songtype):
 
 
 # resetzs the game values if needed
-def reset_game():
+def reset_game(get_respawn):
     # kill all enemys from screen
     killer.kill_all()
 
@@ -1429,4 +1511,5 @@ def reset_game():
 
     # reset respawn variable
     respawn = 0
-    return respawn
+    if get_respawn:
+        return respawn
