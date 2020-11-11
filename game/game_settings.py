@@ -534,28 +534,6 @@ class sprite_killer(pygame.sprite.Sprite):
         for hit in hits:
             hit.kill()
 
-    def kill_and_count(self):
-        amount = 0
-        # kill all sprites without rasing the respawn variable
-        # except of the player
-        # also count the amoung of killed villans
-        hits = pygame.sprite.spritecollide(self, meteors, True)
-        for hit in hits:
-            amount += 1
-            hit.kill()
-
-        hits = pygame.sprite.spritecollide(self, enemys, True)
-        for hit in hits:
-            amount += 1
-            hit.kill()
-
-        hits = pygame.sprite.spritecollide(self, enemy_bullets, True)
-        for hit in hits:
-            hit.kill()
-
-        hits = pygame.sprite.spritecollide(self, power_ups, True)
-        for hit in hits:
-            hit.kill()
 
     def kill_and_count(self):
         amount = 0
@@ -1295,7 +1273,7 @@ def generate_villans(respawn):
         amount = 0
 
     # for ever enemy to spawn...
-    if amount != 0:
+    while amount != 0:
         # ...generate a random number between 0.0 and 1.0 and safe it
         selector = random()
 
@@ -1494,7 +1472,7 @@ def jukebox(songtype):
         pygame.mixer.music.play(loops=-1)
 
 
-# resetzs the game values if needed
+# resets the game values if needed
 def reset_game(get_respawn):
     # kill all enemys from screen
     killer.kill_all()
@@ -1508,6 +1486,7 @@ def reset_game(get_respawn):
     player.score_multiplier = 1
     player.shield = 100
     player.score = 0
+    player.power_level = 1
 
     # reset respawn variable
     respawn = 0
