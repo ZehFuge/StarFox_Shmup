@@ -9,6 +9,7 @@ import pygame
 
 
 # library init block
+pygame.mixer.pre_init(44100, -16, 50, 4096)
 pygame.mixer.init()
 pygame.font.init()
 
@@ -231,8 +232,14 @@ startmenu_images["scores_mouse_over"].set_colorkey(RED)
 # load howto images
 # subsection of startmenu
 howto_images = {}
-howto_images["movement"] = pygame.image.load(path.join(img_dir, "anleitung_movement_1000x600p.png")).convert()
+howto_images["movement"] = pygame.image.load(path.join(img_dir, "anleitung_movement_750x600p.png")).convert()
+howto_images["movement"].set_colorkey(RED)
 howto_images["movement_rect"] = howto_images["movement"].get_rect()
+
+# load howto powerups images
+howto_images["powerups"] = pygame.image.load(path.join(img_dir, "anleitung_powerups_750x600p.png")).convert()
+howto_images["powerups"].set_colorkey(RED)
+howto_images["powerups_rect"] = howto_images["powerups"].get_rect()
 
 
 # sounds loading block
@@ -264,6 +271,14 @@ power_up_sound["double"] = pygame.mixer.Sound(path.join(snd_dir, "power_up_multi
 power_up_sound["double"].set_volume(0.7)
 
 
+# load voice sfx
+voice_sound = {}
+voice_sound["player_death"] = pygame.mixer.Sound(path.join(snd_dir, "player_gameover_sfx.ogg"))
+voice_sound["player_death"].set_volume(0.3)
+voice_sound["player_lifeloss"] = pygame.mixer.Sound(path.join(snd_dir, "player_lifeloss.ogg"))
+voice_sound["player_lifeloss"].set_volume(0.5)
+
+
 # load explosion sound
 explosion_sound = pygame.mixer.Sound(path.join(snd_dir, "explosion_sfx.ogg"))
 explosion_sound.set_volume(0.1)
@@ -271,6 +286,8 @@ explosion_sound.set_volume(0.1)
 
 # load good luck sound (plays after game gets started) and its control variable
 startmenu_soundcontroller = {}
+startmenu_soundcontroller["howto"] = True
+startmenu_soundcontroller["scores"] = True
 
 
 startmenu_sounds = {}
@@ -339,7 +356,6 @@ class Player(pygame.sprite.Sprite):
         self.hurt_mode = True
         self.hurt_delay = 2000
         self.reset_position = True
-        self.death = False
 
         # power level defines the strength of the laser
         self.power_level = 1
@@ -474,23 +490,22 @@ class Player(pygame.sprite.Sprite):
             # player takes damage
             self.shield -= 20
 
-            # correct death state
-            self.death = False
-
             # reset multiplier bonus
             self.score_multiplier = 1
 
 
         else:
+            # prioritize playing lifeloss sound
+            # only if self.lives -1 > 0, to not overlap with player_death sound
+            if self.lives -1 > 0:
+                voice_sound["player_lifeloss"].play()
+
             # create explosion image and play its sound
             explosion = Explosion(self.rect.center, "player")
             all_sprites.add(explosion)
             explosion_sound.play()
 
-            # correct death state
-            self.death = True
 
-            # activate the hurt mode and get time of death
             self.hurt_mode = False
             self.reset_position = False
             self.last_update["death_time"] = pygame.time.get_ticks()
@@ -534,7 +549,6 @@ class sprite_killer(pygame.sprite.Sprite):
         for hit in hits:
             hit.kill()
 
-
     def kill_and_count(self):
         amount = 0
         # kill all sprites without rasing the respawn variable
@@ -558,21 +572,6 @@ class sprite_killer(pygame.sprite.Sprite):
         for hit in hits:
             hit.kill()
 
-        return amount
-
-
-    def just_count(self):
-        amount = 0
-        # count the amount of villans on screen
-        # this method is needed to handle the amount of villans onscreen
-
-        hits = pygame.sprite.spritecollide(self, meteors, False)
-        for hit in hits:
-            amount += 1
-
-        hits = pygame.sprite.spritecollide(self, enemys, False)
-        for hit in hits:
-            amount += 1
 
         return amount
 
@@ -715,7 +714,7 @@ class Enemy_Bullet(pygame.sprite.Sprite):
         self.rect.bottom = y
         self.rect.centerx = x
         # the speed is subtrakted because the bullet is flying up
-        self.move_speed = 8
+        self.move_speed = 12
 
     # set the update information for behavior
     def update(self):
@@ -753,7 +752,7 @@ class Enemy(pygame.sprite.Sprite):
 
         # information needed for movement and hitbox
         self.radius = self.rect.width / 2.5
-        self.speed_y = randrange(2, 5)
+        self.speed_y = randrange(1, 5)
         self.speed_x = 3
 
         # set start randomly generated start positons
@@ -1060,7 +1059,19 @@ def howto_menu():
     pygame.mouse.set_visible(1)
     running = True
 
+    # set check var for active howto image tab
+    # movement and powerups
+    active_tab = "movement"
+
+    # get position of the howto frame
+    image_x = ((WIDTH / 2) - (howto_images["movement_rect"].width / 2))
+    image_x_right = ((WIDTH / 2) + (howto_images["movement_rect"].width / 2))
+    image_y = 50
+
     back_button = pygame.Rect((WIDTH / 2) - 150, 675, 300, 100)
+    switch_to = {}
+    switch_to["powerups"] = pygame.Rect(image_x_right - 331, (image_y + 20), 279, 112)
+    switch_to["movement"] = pygame.Rect((image_x + 52), (image_y + 20), 279, 112)
 
     while running:
         clock.tick(FPS)
@@ -1069,8 +1080,23 @@ def howto_menu():
 
         # draw background
         screen.blit(background_img, background_img_rect)
+
+        # check if manuals got switched
+        if active_tab ==  "movement":
+            if switch_to["powerups"].collidepoint(mx, my):
+                if mouse_pressed[0]:
+                    active_tab = "powerups"
+        if active_tab == "powerups":
+            if switch_to["movement"].collidepoint(mx, my):
+                if mouse_pressed[0]:
+                    active_tab = "movement"
+
         # draw manuals
-        screen.blit(howto_images["movement"], (100, 50))
+        if active_tab == "movement":
+            screen.blit(howto_images["movement"], ((WIDTH / 2) - (howto_images["movement_rect"].width / 2), 50))
+        if active_tab == "powerups":
+            screen.blit(howto_images["powerups"], ((WIDTH / 2) - (howto_images["powerups_rect"].width / 2), 50))
+
 
         # print the back button depending on the mouseover state
         if back_button.collidepoint(mx, my):
@@ -1170,12 +1196,10 @@ def pause_menu():
     pygame.mouse.set_visible(1)
 
     # button block
-    continue_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) - 125, 300, 100)
-    menu_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2), 300, 100)
-    exit_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) + 125, 300, 100)
+    continue_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) - 65, 300, 100)
+    exit_button = pygame.Rect((WIDTH / 2) - 150, (HEIGHT / 2) + 65, 300, 100)
 
     while running:
-        clock.tick(FPS)
         mx, my = pygame.mouse.get_pos()
         mouse_pressed = pygame.mouse.get_pressed()
 
@@ -1196,36 +1220,13 @@ def pause_menu():
 
             # check if mouse touches button and clicks
             if mouse_pressed[0]:
+                # make mouse invisible for ingame
                 pygame.mouse.set_visible(0)
                 running = False
-                return False
 
         else:
             screen.blit(startmenu_images["play_idle"], continue_button)
             startmenu_soundcontroller["play"] = True
-
-        # menu button check
-        if menu_button.collidepoint(mx, my):
-            screen.blit(startmenu_images["menu_mouseover"], menu_button)
-
-            # check if mouseover sound got played once
-            if startmenu_soundcontroller["menu"]:
-                startmenu_sounds["mouseover"].play()
-
-                # change soundcontroller
-                startmenu_soundcontroller["menu"] = False
-
-            # check if mouse touches button and clicks
-            if mouse_pressed[0]:
-                # reset player variables and clear screen
-                reset_game(False)
-
-                player.death = False
-                return True
-
-        else:
-            screen.blit(startmenu_images["menu_idle"], menu_button)
-            startmenu_soundcontroller["menu"] = True
 
         # exit button check
         if exit_button.collidepoint(mx, my):
@@ -1246,9 +1247,8 @@ def pause_menu():
             screen.blit(startmenu_images["exit_idle"], exit_button)
             startmenu_soundcontroller["exit"] = True
 
-        # get user input
+        # check for closing the game
         for event in pygame.event.get():
-            # quit game if "x" got clicked
             if event.type == pygame.QUIT:
                 end_game()
 
@@ -1258,20 +1258,15 @@ def pause_menu():
 # respawns enemys by given amount
 def generate_villans(respawn):
     amount = respawn
-    amount_onscreen = 0
     now = pygame.time.get_ticks()
 
     # if 20 seconds have passed, add more enemys
     if (now - last_update["more_villans"]) >= 20_000:
         last_update["more_villans"] = now
-        amount += 2
-
-    # check if there are to many enemys on screen
-    # if true, block respawning
-    amount_onscreen = killer.just_count()
-    if amount_onscreen >= 20:
-        amount = 0
-
+        if amount < 20:
+            amount += 2
+        else:
+            amount = 10
     # for ever enemy to spawn...
     while amount != 0:
         # ...generate a random number between 0.0 and 1.0 and safe it
@@ -1459,7 +1454,7 @@ def jukebox(songtype):
         # load game theme
         jukebox = pygame.mixer.music.load(path.join(snd_dir, "corneria_theme_music.mp3"))
         # set loudness of the track
-        pygame.mixer.music.set_volume(0.1)
+        pygame.mixer.music.set_volume(0.2)
         # set infinite loop
         pygame.mixer.music.play(loops=-1)
 
@@ -1472,8 +1467,8 @@ def jukebox(songtype):
         pygame.mixer.music.play(loops=-1)
 
 
-# resets the game values if needed
-def reset_game(get_respawn):
+# resetzs the game values if needed
+def reset_game():
     # kill all enemys from screen
     killer.kill_all()
 
@@ -1486,9 +1481,7 @@ def reset_game(get_respawn):
     player.score_multiplier = 1
     player.shield = 100
     player.score = 0
-    player.power_level = 1
 
     # reset respawn variable
     respawn = 0
-    if get_respawn:
-        return respawn
+    return respawn
