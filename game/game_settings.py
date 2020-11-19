@@ -99,6 +99,14 @@ meteor_images_list = ["meteor_64x64p_rgb_0_0_0.png",
 for img in meteor_images_list:
     meteor_images.append(pygame.image.load(path.join(img_dir, img)).convert())
 
+meteor_images_hit = []
+meteor_images_list = ["meteor_hit_96x96p_rgb_0_0_0.png",
+                      "meteor_hit_128x128p_rgb_0_0_0.png"]
+# load all images in meteor_images list
+for img in meteor_images_list:
+    meteor_images_hit.append(pygame.image.load(path.join(img_dir, img)).convert())
+
+
 # load enemy images
 enemy_imgs = {}
 
@@ -288,6 +296,7 @@ explosion_sound.set_volume(0.1)
 startmenu_soundcontroller = {}
 startmenu_soundcontroller["howto"] = True
 startmenu_soundcontroller["scores"] = True
+startmenu_soundcontroller["exit"] = True
 
 
 startmenu_sounds = {}
@@ -337,7 +346,7 @@ class Player(pygame.sprite.Sprite):
         # declare a delay for shooting to provide non stop fire
         # this will be used with the time function and the last_shot variable
         # in this case 250 = milliseconds
-        self.shoot_delay = 250
+        self.shoot_delay = 150
         self.last_shot = 0
         self.lives = 3
         # shield is used as the players hp bar
@@ -365,6 +374,9 @@ class Player(pygame.sprite.Sprite):
     def update(self):
         # save the input in a variable for better movement controls
         keystate = pygame.key.get_pressed()
+
+        # regulate shoot_delay
+        self.regulate_shoot_delay()
 
         # play right sound with delay for the right shield amount
         now = pygame.time.get_ticks()
@@ -481,6 +493,16 @@ class Player(pygame.sprite.Sprite):
                 bullets.add(bullet1)
                 bullets.add(bullet2)
                 laser_sound[2].play()
+
+
+    # used to regulate the shoot_delay, the less the quantity of laser the short the shoot_delay
+    def regulate_shoot_delay(self):
+        if self.power_level == 1:
+            self.shoot_delay = 150
+        if self.power_level == 2:
+            self.shoot_delay = 175
+        if self.power_level >= 3:
+            self.shoot_delay = 200
 
 
     # this function activates to avoid taking multiple damage at once
@@ -632,6 +654,7 @@ class Bullet(pygame.sprite.Sprite):
 class Meteor(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
+
         # select random size meteor
         # 64x64p, 96x96p or 128x128p
         self.image_original = choice(meteor_images)
@@ -644,10 +667,10 @@ class Meteor(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         # let each object rotate in a different speed for more realistic feeling
         self.rotation = 0
-        self.rotation_speed = randrange(-15, 15)
+        self.rotation_speed = randrange(-12, 12)
         # denie rotation_speed = 0
         while self.rotation_speed == 0:
-            self.rotation_speed = randrange(-15, 15)
+            self.rotation_speed = randrange(-12, 12)
         self.last_update = pygame.time.get_ticks()
 
         # set start randomly generated start positons
@@ -662,6 +685,42 @@ class Meteor(pygame.sprite.Sprite):
         # create circular hitbox
         self.radius = int(self.rect.width / 2.2)
         # pygame.draw.circle(self.image, RED, self.rect.center, self.radius)
+
+        # object need to be shot more than one time to be killed
+        # hit_points depend on meteor size
+        if self.rect[2] == 64:
+            self.hit_points = 1
+        if self.rect[2] == 96:
+            self.hit_points = 2
+        if self.rect[2] == 128:
+            self.hit_points = 3
+
+        # check if object got hit to change its image to meteor_hit
+        self.was_hit = False
+        self.hit_counter = 0
+
+    # changes the image of the object if hit
+    def hit(self):
+        if self.was_hit:
+            if self.image_original == meteor_images[1]:
+                self.image_original = meteor_images_hit[0]
+                self.image_original.set_colorkey(WHITE)
+            if self.image_original == meteor_images[2]:
+                self.image_original = meteor_images_hit[1]
+                self.image_original.set_colorkey(WHITE)
+
+        if self.was_hit \
+            and self.hit_counter >= 3:
+            if self.image_original == meteor_images_hit[0]:
+                self.image_original = meteor_images[1]
+                self.image_original.set_colorkey(WHITE)
+                self.hit_counter = 0
+                self.was_hit = False
+            if self.image_original == meteor_images_hit[1]:
+                self.image_original = meteor_images[2]
+                self.image_original.set_colorkey(WHITE)
+                self.hit_counter = 0
+                self.was_hit = False
 
     # make the sprite rotate
     def rotate(self):
@@ -680,6 +739,15 @@ class Meteor(pygame.sprite.Sprite):
 
     # update position by behavior
     def update(self):
+        now = pygame.time.get_ticks()
+
+        # check if enemy got hit and change its image for few ms
+        self.hit()
+
+        # raise hit counter for ending was_hit image
+        if self.was_hit:
+            self.hit_counter += 1
+
         # Test with fixed and visible position
         # self.rect.x = 50
         # self.rect.y = 100
@@ -759,6 +827,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.x = randrange(0, WIDTH - self.rect.width)
         # start position y set to negative, so it doesnt pop up on screen but comes in naturally
         self.rect.y = -100
+
 
     def update(self):
         now = pygame.time.get_ticks()
@@ -1358,22 +1427,35 @@ def collision_check():
         player.hurt()
 
     # collision meteor by bullets
-    hits = pygame.sprite.groupcollide(meteors, bullets, True, True)
+    hits = pygame.sprite.groupcollide(meteors, bullets, False, True)
     # if meteor dies through hit, raise respawn variable
     for hit in hits:
-        # create explosion image and play its sound
-        explosion = Explosion(hit.rect.center, "lg")
-        all_sprites.add(explosion)
-        explosion_sound.play()
+        # if object gets killed by hit
+        if hit.hit_points -1 == 0:
+            # kill hit object
+            hit.kill()
 
-        # calculate new player score
-        player.score += (100 - hit.radius) * player.score_multiplier
-        respawn += 1
-        # 5% chance to drop power up by meteor kill
-        if random() >= 0.95:
-            pow = Power_Ups(hit.rect.center[0], hit.rect.center[1])
-            all_sprites.add(pow)
-            power_ups.add(pow)
+            # create explosion image and play its sound
+            explosion = Explosion(hit.rect.center, "lg")
+            all_sprites.add(explosion)
+            explosion_sound.play()
+
+            # calculate new player score
+            # player gets more points by killing than hitting
+            player.score += 100 * player.score_multiplier
+            respawn += 1
+
+            # 5% chance to drop power up by meteor kill
+            if random() >= 0.95:
+                pow = Power_Ups(hit.rect.center[0], hit.rect.center[1])
+                all_sprites.add(pow)
+                power_ups.add(pow)
+        else:
+            hit.was_hit = True
+            hit.hit_points -= 1
+            # calculate new player score
+            player.score += (100 - hit.radius) * player.score_multiplier
+
 
     # collision enemys by bullets
     hits = pygame.sprite.groupcollide(enemys, bullets, True, True)
