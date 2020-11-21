@@ -39,6 +39,10 @@ CONVERT_SCORE = (89, 193, 53)
 CONVERT_WINGS = (172, 50, 50)
 CONVERT_PLAYER = (181, 230, 29)
 
+# globals
+global more_villans
+more_villans = pygame.time.get_ticks()
+
 
 # last_updates
 last_update = {}
@@ -297,6 +301,8 @@ startmenu_soundcontroller = {}
 startmenu_soundcontroller["howto"] = True
 startmenu_soundcontroller["scores"] = True
 startmenu_soundcontroller["exit"] = True
+startmenu_soundcontroller["again"] = True
+startmenu_soundcontroller["menu"] = True
 
 
 startmenu_sounds = {}
@@ -319,6 +325,13 @@ enemys = pygame.sprite.Group()
 enemy_bullets = pygame.sprite.Group()
 
 
+# # startmenu object
+# class startmenu(pygame.sprite.Sprite):
+#     def __init__(self):
+#         pygame.sprite.Sprite.__init__(self)
+#         
+#     def update(self):
+
 # sprite classes and function block
 # definition of the Player class
 class Player(pygame.sprite.Sprite):
@@ -336,6 +349,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.bottom = background_img_rect.bottom - 5
 
         # dictonary for time events
+        self.now = pygame.time.get_ticks()
         self.last_update = {}
         self.last_update["shield_sound"] = pygame.time.get_ticks()
         self.last_update["death_time"] = pygame.time.get_ticks()
@@ -369,51 +383,42 @@ class Player(pygame.sprite.Sprite):
         # power level defines the strength of the laser
         self.power_level = 1
 
+        # needed for time events
+        self.time_played = pygame.time.get_ticks()
+
 
     # update the player sprite by user input
     def update(self):
-        # save the input in a variable for better movement controls
-        keystate = pygame.key.get_pressed()
+        # keep played time updated
+        self.time_played = pygame.time.get_ticks()
+
+        # update self.now
+        self.now = pygame.time.get_ticks()
+
+        # play shield_alarm if shield is low
+        self.shield_alarm()
+
+        # check and handle the player hurt_mode
+        self.check_hurt_mode()
 
         # regulate shoot_delay
         self.regulate_shoot_delay()
 
-        # play right sound with delay for the right shield amount
-        now = pygame.time.get_ticks()
-        if 30 < self.shield <= 50:
-            if (now - self.last_update["shield_sound"]) >= 2000:
-                self.last_update["shield_sound"] = now
-                player_sounds["mid"].play()
+        # check keyboard input for movement
+        self.handle_movement()
 
-        if 0 < self.shield <= 30:
-            if (now - self.last_update["shield_sound"]) >= 1000:
-                self.last_update["shield_sound"] = now
-                player_sounds["low"].play()
 
-        # hide the player if he died
-        if not self.hurt_mode:
-            if not self.reset_position:
-                self.rect.y = 1000
-
-                if (now - self.last_update["death_time"]) >= self.hurt_delay:
-                    # reset player position
-                    self.rect.bottom = background_img_rect.bottom - 5
-                    self.rect.x = WIDTH / 2
-
-                    # get recover time
-                    self.last_update["recovered"] = pygame.time.get_ticks()
-
-                    # reset check variables
-                    self.hurt_mode = True
-                    self.reset_position = True
-
+    # handles the movement by keyboard input
+    def handle_movement(self):
+        # save the input in a variable for better movement controls
+        keystate = pygame.key.get_pressed()
 
         # checker for user input for movement
         # also check if player trys to leave the screen
         if keystate[pygame.K_a] \
                 or keystate[pygame.K_LEFT]:
             self.image = player_imgs["left"]
-            self.move_speed = -10
+            self.move_speed = -8
             # wall check screen.left
             if (self.rect.left + self.move_speed) > 0:
                 self.rect.x += self.move_speed
@@ -421,21 +426,21 @@ class Player(pygame.sprite.Sprite):
         if keystate[pygame.K_d] \
                 or keystate[pygame.K_RIGHT]:
             self.image = player_imgs["right"]
-            self.move_speed = 10
+            self.move_speed = 8
             # wall check screen.right
             if (self.rect.right + self.move_speed) < WIDTH:
                 self.rect.x += self.move_speed
 
         if keystate[pygame.K_w] \
                 or keystate[pygame.K_UP]:
-            self.move_speed = -7
+            self.move_speed = -8
             # wall check screen.top
             if (self.rect.top + self.move_speed) > 75:
                 self.rect.y += self.move_speed
 
         if keystate[pygame.K_s] \
                 or keystate[pygame.K_DOWN]:
-            self.move_speed = 7
+            self.move_speed = 8
             # wall check screen.bottom
             if (self.rect.bottom + self.move_speed) < HEIGHT:
                 self.rect.y += self.move_speed
@@ -451,15 +456,44 @@ class Player(pygame.sprite.Sprite):
             if not keystate[pygame.K_d]:
                 self.image = player_imgs["idle"]
 
+    # handle the hurt_mode of the player object
+    def check_hurt_mode(self):
+        # hide the player if he died
+        if not self.hurt_mode:
+            if not self.reset_position:
+                self.rect.y = 1000
+
+                if (self.now - self.last_update["death_time"]) >= self.hurt_delay:
+                    # reset player position
+                    self.rect.bottom = background_img_rect.bottom - 5
+                    self.rect.x = WIDTH / 2
+
+                    # get recover time
+                    self.last_update["recovered"] = pygame.time.get_ticks()
+
+                    # reset check variables
+                    self.hurt_mode = True
+                    self.reset_position = True
+
+    # plays shield alarm if needed
+    def shield_alarm(self):
+        if 30 < self.shield <= 50:
+            if (self.now - self.last_update["shield_sound"]) >= 2000:
+                self.last_update["shield_sound"] = self.now
+                player_sounds["mid"].play()
+
+        if 0 < self.shield <= 30:
+            if (self.now - self.last_update["shield_sound"]) >= 1000:
+                self.last_update["shield_sound"] = self.now
+                player_sounds["low"].play()
+
+
     # make the player shoot after pressing the space bar
     def shoot(self):
-        # set the time of pressing space to a variable
-        now = pygame.time.get_ticks()
-
         # if enough time passed since the last shot, shoot again
-        if now - self.last_shot > self.shoot_delay:
+        if self.now - self.last_shot > self.shoot_delay:
             # if enough time has passed, set new time for last_shot variable
-            self.last_shot = now
+            self.last_shot = self.now
 
             # laser object amount is declared by the power_level of the player
             # single shot
@@ -497,12 +531,14 @@ class Player(pygame.sprite.Sprite):
 
     # used to regulate the shoot_delay, the less the quantity of laser the short the shoot_delay
     def regulate_shoot_delay(self):
-        if self.power_level == 1:
+        if self.power_level == 1 and self.time_played <= 20_000:
             self.shoot_delay = 150
-        if self.power_level == 2:
+        if self.power_level == 1 \
+                and self.time_played > 20_000 \
+                and self.lives < 3:
+            self.shoot_delay = 100
+        if self.power_level >= 2:
             self.shoot_delay = 175
-        if self.power_level >= 3:
-            self.shoot_delay = 200
 
 
     # this function activates to avoid taking multiple damage at once
@@ -679,7 +715,7 @@ class Meteor(pygame.sprite.Sprite):
         self.rect.y = randrange(-150, -100)
 
         # set fly behavior
-        self.speed_y = randrange(8, 15)
+        self.speed_y = randrange(8, 12)
         self.speed_x = randrange(-3, 3)
 
         # create circular hitbox
@@ -691,9 +727,9 @@ class Meteor(pygame.sprite.Sprite):
         if self.rect[2] == 64:
             self.hit_points = 1
         if self.rect[2] == 96:
-            self.hit_points = 2
-        if self.rect[2] == 128:
             self.hit_points = 3
+        if self.rect[2] == 128:
+            self.hit_points = 5
 
         # check if object got hit to change its image to meteor_hit
         self.was_hit = False
@@ -820,7 +856,7 @@ class Enemy(pygame.sprite.Sprite):
 
         # information needed for movement and hitbox
         self.radius = self.rect.width / 2.5
-        self.speed_y = randrange(1, 5)
+        self.speed_y = randrange(3, 5)
         self.speed_x = 3
 
         # set start randomly generated start positons
@@ -1259,6 +1295,8 @@ def display_game_over():
 
 # draw the pause menu if the player presses ESC while playing
 def pause_menu():
+    # safe time of pause menu creation to correct all time events
+    start_pause_menu = pygame.time.get_ticks()
     running = True
 
     # make mouse visible again
@@ -1289,6 +1327,8 @@ def pause_menu():
 
             # check if mouse touches button and clicks
             if mouse_pressed[0]:
+                end_of_pause_menu = pygame.time.get_ticks()
+                wasted_time = end_of_pause_menu - start_pause_menu
                 # make mouse invisible for ingame
                 pygame.mouse.set_visible(0)
                 running = False
@@ -1322,20 +1362,23 @@ def pause_menu():
                 end_game()
 
         pygame.display.flip()
+    return wasted_time
 
 
 # respawns enemys by given amount
 def generate_villans(respawn):
+    global more_villans
     amount = respawn
     now = pygame.time.get_ticks()
 
     # if 20 seconds have passed, add more enemys
-    if (now - last_update["more_villans"]) >= 20_000:
-        last_update["more_villans"] = now
-        if amount < 20:
+    if (now - more_villans) >= 20_000:
+        more_villans = now
+        if amount < 15:
             amount += 2
         else:
             amount = 10
+
     # for ever enemy to spawn...
     while amount != 0:
         # ...generate a random number between 0.0 and 1.0 and safe it
