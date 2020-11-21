@@ -118,7 +118,9 @@ while running:
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                GS.pause_menu()
+                wasted_time = GS.pause_menu()
+                # correct time events
+                GS.more_villans += wasted_time
 
 
     # update / move sprites
